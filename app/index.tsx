@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -10,90 +10,84 @@ export default function LandingScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <MaterialIcons name="account-balance" size={48} color={colors.fursOrange} />
-          <Text style={styles.title}>Računovodstvo</Text>
-          <Text style={styles.subtitle}>Profesionalna rešitev za s.p.</Text>
-        </View>
-
-        <View style={styles.menu}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.menuCard,
-              styles.primaryCard,
-              pressed && styles.menuCardPressed,
-            ]}
-            onPress={() => router.push('/issue-invoice')}
-          >
-            <MaterialIcons name="add-circle" size={56} color={colors.text} />
-            <Text style={styles.menuTitle}>Izdaja računov</Text>
-            <Text style={styles.menuDescription}>
-              Hitro izdajte račun, predračun ali dobavnico
-            </Text>
-          </Pressable>
-
-          <View style={styles.gridRow}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.menuCard,
-                styles.gridCard,
-                styles.secondaryCard,
-                pressed && styles.menuCardPressed,
-              ]}
-              onPress={() => router.push('/invoices')}
-            >
-              <MaterialIcons name="receipt-long" size={40} color={colors.text} />
-              <Text style={styles.gridTitle}>Računi</Text>
-              <Text style={styles.gridDescription}>Pregled</Text>
-            </Pressable>
-
-            <Pressable
-              style={({ pressed }) => [
-                styles.menuCard,
-                styles.gridCard,
-                styles.accentCard,
-                pressed && styles.menuCardPressed,
-              ]}
-              onPress={() => router.push('/manage-services')}
-            >
-              <MaterialIcons name="inventory" size={40} color={colors.text} />
-              <Text style={styles.gridTitle}>Zaloga</Text>
-              <Text style={styles.gridDescription}>Izdelki</Text>
-            </Pressable>
+      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
+        <View style={styles.content}>
+          <View style={styles.header}>
+            <MaterialIcons name="account-balance" size={40} color={colors.primary} />
+            <Text style={styles.title}>Računovodstvo</Text>
+            <Text style={styles.subtitle}>Profesionalna rešitev za s.p.</Text>
           </View>
 
-          <Pressable
-            style={({ pressed }) => [
-              styles.menuCard,
-              styles.secondaryCard,
-              pressed && styles.menuCardPressed,
-            ]}
-            onPress={() => router.push('/business-overview')}
-          >
-            <MaterialIcons name="analytics" size={48} color={colors.text} />
-            <Text style={styles.menuTitle}>Pregled poslovanja</Text>
-            <Text style={styles.menuDescription}>
-              Statistika in izvozi
-            </Text>
-          </Pressable>
+          <View style={styles.menu}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.menuCard,
+                styles.primaryCard,
+                pressed && styles.menuCardPressed,
+              ]}
+              onPress={() => router.push('/issue-invoice')}
+            >
+              <MaterialIcons name="add-circle" size={32} color={colors.text} />
+              <Text style={styles.menuTitle}>Izdaja računov</Text>
+              <Text style={styles.menuDescription}>
+                Izdajte račun s FURS potrditvijo
+              </Text>
+            </Pressable>
 
-          <Pressable
-            style={({ pressed }) => [
-              styles.menuCard,
-              styles.tertiaryCard,
-              pressed && styles.menuCardPressed,
-            ]}
-            onPress={() => router.push('/settings')}
-          >
-            <MaterialIcons name="settings" size={48} color={colors.text} />
-            <Text style={styles.menuTitle}>Nastavitve</Text>
-            <Text style={styles.menuDescription}>
-              Podjetje, davčni sistem, tema
-            </Text>
-          </Pressable>
+            <View style={styles.gridRow}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.menuCard,
+                  styles.gridCard,
+                  pressed && styles.menuCardPressed,
+                ]}
+                onPress={() => router.push('/invoices')}
+              >
+                <MaterialIcons name="receipt-long" size={28} color={colors.primary} />
+                <Text style={styles.gridTitle}>Računi</Text>
+              </Pressable>
+
+              <Pressable
+                style={({ pressed }) => [
+                  styles.menuCard,
+                  styles.gridCard,
+                  pressed && styles.menuCardPressed,
+                ]}
+                onPress={() => router.push('/manage-services')}
+              >
+                <MaterialIcons name="inventory" size={28} color={colors.secondary} />
+                <Text style={styles.gridTitle}>Zaloga</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.gridRow}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.menuCard,
+                  styles.gridCard,
+                  pressed && styles.menuCardPressed,
+                ]}
+                onPress={() => router.push('/business-overview')}
+              >
+                <MaterialIcons name="analytics" size={28} color={colors.success} />
+                <Text style={styles.gridTitle}>Pregled</Text>
+              </Pressable>
+
+              <Pressable
+                style={({ pressed }) => [
+                  styles.menuCard,
+                  styles.gridCard,
+                  pressed && styles.menuCardPressed,
+                ]}
+                onPress={() => router.push('/settings')}
+              >
+                <MaterialIcons name="settings" size={28} color={colors.textSecondary} />
+                <Text style={styles.gridTitle}>Nastavitve</Text>
+              </Pressable>
+            </View>
+          </View>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -103,18 +97,21 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  scroll: {
+    flex: 1,
+  },
   content: {
     flex: 1,
     padding: spacing.lg,
   },
   header: {
     alignItems: 'center',
-    marginTop: spacing.xl,
+    marginTop: spacing.lg,
     marginBottom: spacing.xl,
   },
   title: {
     ...typography.h1,
-    fontSize: 32,
+    fontSize: 28,
     color: colors.text,
     marginTop: spacing.md,
   },
@@ -124,46 +121,29 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   menu: {
-    flex: 1,
     gap: spacing.md,
   },
   gridRow: {
     flexDirection: 'row',
     gap: spacing.md,
-    height: 140,
   },
   menuCard: {
-    padding: spacing.xl,
-    borderRadius: borderRadius.xl,
+    padding: spacing.lg,
+    borderRadius: borderRadius.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
   gridCard: {
     flex: 1,
-    padding: spacing.md,
+    minHeight: 100,
   },
   primaryCard: {
-    backgroundColor: colors.fursOrange,
-    borderColor: colors.fursOrange,
-    minHeight: 160,
-  },
-  secondaryCard: {
-    backgroundColor: colors.fursBlue,
-    borderColor: colors.fursBlue,
-  },
-  accentCard: {
-    backgroundColor: colors.fursGreen,
-    borderColor: colors.fursGreen,
-  },
-  tertiaryCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+    minHeight: 130,
   },
   menuCardPressed: {
     opacity: 0.8,
@@ -172,26 +152,20 @@ const styles = StyleSheet.create({
   menuTitle: {
     ...typography.h2,
     color: colors.text,
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
     textAlign: 'center',
   },
   menuDescription: {
-    ...typography.body,
-    color: colors.textSecondary,
-    marginTop: spacing.sm,
-    textAlign: 'center',
-  },
-  gridTitle: {
-    ...typography.h3,
-    color: colors.text,
-    marginTop: spacing.sm,
-    textAlign: 'center',
-    fontWeight: '700',
-  },
-  gridDescription: {
     ...typography.bodySmall,
     color: colors.textSecondary,
     marginTop: spacing.xs,
     textAlign: 'center',
+  },
+  gridTitle: {
+    ...typography.body,
+    color: colors.text,
+    marginTop: spacing.sm,
+    textAlign: 'center',
+    fontWeight: '600',
   },
 });

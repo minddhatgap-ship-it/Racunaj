@@ -74,16 +74,16 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   small: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
   },
   medium: {
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
   },
   large: {
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.xl,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
   },
   disabled: {
     opacity: 0.5,

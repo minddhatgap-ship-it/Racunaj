@@ -1,14 +1,10 @@
 export const colors = {
   primary: '#3B82F6',
   primaryDark: '#2563EB',
-  secondary: '#10B981',
+  secondary: '#6366F1',
+  accent: '#8B5CF6',
   danger: '#EF4444',
   warning: '#F59E0B',
-  
-  // FURS colors
-  fursOrange: '#FF6B35',
-  fursBlue: '#004E89',
-  fursGreen: '#00A878',
   
   background: '#0F172A',
   surface: '#1E293B',
