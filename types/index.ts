@@ -103,5 +103,6 @@ export interface CompanySettings {
 
 export interface AppSettings {
   theme: 'light' | 'dark';
+  testMode: boolean;
   company: CompanySettings;
 }

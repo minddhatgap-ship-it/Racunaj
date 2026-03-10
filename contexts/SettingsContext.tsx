@@ -6,11 +6,13 @@ interface SettingsContextType {
   settings: AppSettings;
   updateCompany: (company: Partial<AppSettings['company']>) => Promise<void>;
   updateTheme: (theme: 'light' | 'dark') => Promise<void>;
+  updateTestMode: (testMode: boolean) => Promise<void>;
   isLoading: boolean;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
   theme: 'dark',
+  testMode: false,
   company: {
     name: 'Moje Podjetje s.p.',
     owner: 'Janez Novak',
@@ -63,8 +65,14 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(updated));
   }
 
+  async function updateTestMode(testMode: boolean) {
+    const updated = { ...settings, testMode };
+    setSettings(updated);
+    await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(updated));
+  }
+
   return (
-    <SettingsContext.Provider value={{ settings, updateCompany, updateTheme, isLoading }}>
+    <SettingsContext.Provider value={{ settings, updateCompany, updateTheme, updateTestMode, isLoading }}>
       {children}
     </SettingsContext.Provider>
   );

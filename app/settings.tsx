@@ -20,7 +20,7 @@ const TAX_SYSTEMS: { value: TaxSystem; label: string; description: string }[] = 
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { settings, updateCompany, updateTheme } = useSettings();
+  const { settings, updateCompany, updateTheme, updateTestMode } = useSettings();
   const { showAlert } = useAlert();
 
   const [name, setName] = useState(settings.company.name);
@@ -192,6 +192,39 @@ export default function SettingsScreen() {
             </View>
           </Card>
 
+          {/* Test Mode */}
+          <Card style={styles.section}>
+            <Text style={styles.sectionTitle}>Testni način</Text>
+            <Pressable
+              style={[
+                styles.testModeButton,
+                settings.testMode && styles.testModeButtonActive,
+              ]}
+              onPress={() => updateTestMode(!settings.testMode)}
+            >
+              <View style={styles.testModeContent}>
+                <MaterialIcons 
+                  name={settings.testMode ? 'check-box' : 'check-box-outline-blank'} 
+                  size={24} 
+                  color={settings.testMode ? colors.warning : colors.textMuted} 
+                />
+                <View style={styles.testModeInfo}>
+                  <Text style={[styles.testModeTitle, settings.testMode && styles.testModeTitleActive]}>
+                    Simulacija FURS
+                  </Text>
+                  <Text style={styles.testModeDesc}>
+                    {settings.testMode 
+                      ? 'AKTIVNO - Računi se ne pošiljajo na FURS' 
+                      : 'NEAKTIVNO - Računi se pošiljajo na FURS'}
+                  </Text>
+                </View>
+              </View>
+              {settings.testMode && (
+                <MaterialIcons name="warning" size={24} color={colors.warning} />
+              )}
+            </Pressable>
+          </Card>
+
           <Button title="Shrani nastavitve" onPress={handleSave} size="large" />
         </View>
       </ScrollView>
@@ -297,5 +330,41 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginTop: spacing.sm,
     fontWeight: '600',
+  },
+  testModeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.background,
+    borderWidth: 2,
+    borderColor: colors.border,
+  },
+  testModeButtonActive: {
+    backgroundColor: colors.warning + '20',
+    borderColor: colors.warning,
+  },
+  testModeContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    flex: 1,
+  },
+  testModeInfo: {
+    flex: 1,
+  },
+  testModeTitle: {
+    ...typography.body,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  testModeTitleActive: {
+    color: colors.warning,
+  },
+  testModeDesc: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
   },
 });

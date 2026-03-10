@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/Card';
 import { useData } from '@/hooks/useData';
 import { useSettings } from '@/hooks/useSettings';
 import { useAlert } from '@/template';
+import { TestModeWarning } from '@/components';
 import { formatCurrency, formatDate } from '@/services/calculations';
 import { generateFursData } from '@/services/furs';
 import { generateInvoicePDF, printInvoice } from '@/services/pdf';
@@ -118,6 +119,7 @@ export default function InvoicesScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <TestModeWarning />
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
           <MaterialIcons name="arrow-back" size={24} color={colors.text} />

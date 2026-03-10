@@ -7,6 +7,7 @@ import { DashboardCard } from '@/components/feature/DashboardCard';
 import { Button } from '@/components/ui/Button';
 import { useData } from '@/hooks/useData';
 import { useAlert } from '@/template';
+import { TestModeWarning } from '@/components';
 import { getDashboardStats, formatCurrency } from '@/services/calculations';
 import { exportToFursXML, exportToCSV, exportToJSON } from '@/services/export';
 import { useSettings } from '@/hooks/useSettings';
@@ -82,6 +83,7 @@ export default function BusinessOverviewScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <TestModeWarning />
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton}>
           <MaterialIcons name="arrow-back" size={24} color={colors.text} />

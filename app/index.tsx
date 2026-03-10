@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { TestModeWarning } from '@/components';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 
 export default function LandingScreen() {
@@ -10,6 +11,7 @@ export default function LandingScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <TestModeWarning />
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
           <View style={styles.header}>
