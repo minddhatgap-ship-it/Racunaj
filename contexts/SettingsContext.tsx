@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { AppSettings, TaxSystem } from '@/types';
+import type { AppSettings, TaxSystem, BluetoothPrinter } from '@/types';
 
 interface SettingsContextType {
   settings: AppSettings;
@@ -9,6 +9,7 @@ interface SettingsContextType {
   updateTestMode: (testMode: boolean) => Promise<void>;
   updateSumUp: (sumup: AppSettings['sumup']) => Promise<void>;
   updateFurs: (furs: AppSettings['furs']) => Promise<void>;
+  updateBluetoothPrinter: (printer?: BluetoothPrinter) => Promise<void>;
   isLoading: boolean;
 }
 
@@ -85,8 +86,14 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(updated));
   }
 
+  async function updateBluetoothPrinter(printer?: BluetoothPrinter) {
+    const updated = { ...settings, bluetoothPrinter: printer };
+    setSettings(updated);
+    await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(updated));
+  }
+
   return (
-    <SettingsContext.Provider value={{ settings, updateCompany, updateTheme, updateTestMode, updateSumUp, updateFurs, isLoading }}>
+    <SettingsContext.Provider value={{ settings, updateCompany, updateTheme, updateTestMode, updateSumUp, updateFurs, updateBluetoothPrinter, isLoading }}>
       {children}
     </SettingsContext.Provider>
   );

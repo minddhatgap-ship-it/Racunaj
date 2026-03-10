@@ -8,7 +8,8 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { useSettings } from '@/hooks/useSettings';
 import { useAlert } from '@/template';
-import type { TaxSystem } from '@/types';
+import type { TaxSystem, BluetoothPrinter } from '@/types';
+import { scanBluetoothPrinters, connectPrinter, printTestReceipt } from '@/services/bluetooth-printer';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 
 const TAX_SYSTEMS: { value: TaxSystem; label: string; description: string }[] = [
@@ -20,8 +21,10 @@ const TAX_SYSTEMS: { value: TaxSystem; label: string; description: string }[] = 
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { settings, updateCompany, updateTheme, updateTestMode, updateSumUp, updateFurs } = useSettings();
+  const { settings, updateCompany, updateTheme, updateTestMode, updateSumUp, updateFurs, updateBluetoothPrinter } = useSettings();
   const { showAlert } = useAlert();
+  const [isScanning, setIsScanning] = useState(false);
+  const [availablePrinters, setAvailablePrinters] = useState<BluetoothPrinter[]>([]);
 
   const [name, setName] = useState(settings.company.name);
   const [owner, setOwner] = useState(settings.company.owner);
@@ -42,6 +45,56 @@ export default function SettingsScreen() {
   // FURS nastavitve
   const [fursCertPassword, setFursCertPassword] = useState(settings.furs?.certPassword || '');
   const [fursTaxNumber, setFursTaxNumber] = useState(settings.furs?.taxNumber || taxNumber);
+
+  const handleScanPrinters = async () => {
+    try {
+      setIsScanning(true);
+      const printers = await scanBluetoothPrinters();
+      setAvailablePrinters(printers);
+      
+      if (printers.length === 0) {
+        showAlert('Ni naprav', 'Ni najdenih Bluetooth tiskalnikov. Preverite ali je tiskalnik vklopljen.');
+      } else {
+        showAlert('Najdeno', `Najdenih ${printers.length} tiskalnikov`);
+      }
+    } catch (error) {
+      showAlert('Napaka', 'Napaka pri iskanju Bluetooth naprav');
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const handleSelectPrinter = async (printer: BluetoothPrinter) => {
+    try {
+      await connectPrinter(printer.address);
+      await updateBluetoothPrinter({
+        ...printer,
+        connected: true,
+      });
+      showAlert('Povezano', `Tiskalnik ${printer.name} povezan`);
+    } catch (error) {
+      showAlert('Napaka', 'Napaka pri povezovanju s tiskalnikom');
+    }
+  };
+
+  const handleTestPrint = async () => {
+    if (!settings.bluetoothPrinter) {
+      showAlert('Napaka', 'Najprej izberite tiskalnik');
+      return;
+    }
+
+    try {
+      await printTestReceipt(settings.bluetoothPrinter);
+      showAlert('Uspeh', 'Testno tiskanje uspešno');
+    } catch (error) {
+      showAlert('Napaka', 'Napaka pri testnem tiskanju');
+    }
+  };
+
+  const handleDisconnectPrinter = async () => {
+    await updateBluetoothPrinter(undefined);
+    showAlert('Odklopljeno', 'Tiskalnik odklopljen');
+  };
 
   const handleSave = async () => {
     await updateCompany({
@@ -304,6 +357,86 @@ export default function SettingsScreen() {
             </Pressable>
           </Card>
 
+          {/* Bluetooth Printer */}
+          <Card style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <MaterialIcons name="bluetooth" size={24} color={colors.secondary} />
+              <Text style={styles.sectionTitle}>Bluetooth tiskalnik (POS 58mm)</Text>
+            </View>
+
+            {settings.bluetoothPrinter ? (
+              <>
+                <View style={styles.printerConnected}>
+                  <View style={styles.printerInfo}>
+                    <MaterialIcons name="print" size={32} color={colors.success} />
+                    <View style={styles.printerDetails}>
+                      <Text style={styles.printerName}>{settings.bluetoothPrinter.name}</Text>
+                      <Text style={styles.printerAddress}>{settings.bluetoothPrinter.address}</Text>
+                      <View style={styles.connectedBadge}>
+                        <MaterialIcons name="check-circle" size={14} color={colors.success} />
+                        <Text style={styles.connectedText}>Povezano</Text>
+                      </View>
+                    </View>
+                  </View>
+                  <View style={styles.printerActions}>
+                    <Button
+                      title="Testno tiskanje"
+                      onPress={handleTestPrint}
+                      size="small"
+                      icon={<MaterialIcons name="print" size={18} color={colors.text} />}
+                    />
+                    <Button
+                      title="Odklopi"
+                      onPress={handleDisconnectPrinter}
+                      variant="outline"
+                      size="small"
+                      icon={<MaterialIcons name="bluetooth-disabled" size={18} color={colors.danger} />}
+                    />
+                  </View>
+                </View>
+              </>
+            ) : (
+              <>
+                <Text style={styles.infoText}>
+                  Povežite Bluetooth POS tiskalnik (58mm širina) za tiskanje računov.
+                </Text>
+                <Button
+                  title="Poišči tiskalnike"
+                  onPress={handleScanPrinters}
+                  loading={isScanning}
+                  icon={<MaterialIcons name="search" size={20} color={colors.text} />}
+                />
+
+                {availablePrinters.length > 0 && (
+                  <View style={styles.printersList}>
+                    <Text style={styles.printersTitle}>Najdeni tiskalniki:</Text>
+                    {availablePrinters.map(printer => (
+                      <Pressable
+                        key={printer.id}
+                        style={styles.printerItem}
+                        onPress={() => handleSelectPrinter(printer)}
+                      >
+                        <MaterialIcons name="print" size={24} color={colors.textSecondary} />
+                        <View style={styles.printerItemInfo}>
+                          <Text style={styles.printerItemName}>{printer.name}</Text>
+                          <Text style={styles.printerItemAddress}>{printer.address}</Text>
+                        </View>
+                        <MaterialIcons name="chevron-right" size={24} color={colors.textMuted} />
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
+
+                <View style={styles.infoBox}>
+                  <MaterialIcons name="info" size={20} color={colors.primary} />
+                  <Text style={styles.infoBoxText}>
+                    Podprti tiskalniki: 58mm termični POS tiskalniki z ESC/POS protokolom (npr. Xprinter, Goojprt, Sunmi).
+                  </Text>
+                </View>
+              </>
+            )}
+          </Card>
+
           {/* Theme */}
           <Card style={styles.section}>
             <Text style={styles.sectionTitle}>Tema</Text>
@@ -532,6 +665,78 @@ const styles = StyleSheet.create({
     color: colors.warning,
   },
   testModeDesc: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+  },
+  printerConnected: {
+    gap: spacing.md,
+  },
+  printerInfo: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.md,
+    borderWidth: 2,
+    borderColor: colors.success,
+  },
+  printerDetails: {
+    flex: 1,
+  },
+  printerName: {
+    ...typography.body,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  printerAddress: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+  },
+  connectedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+  },
+  connectedText: {
+    ...typography.bodySmall,
+    color: colors.success,
+    fontWeight: '600',
+  },
+  printerActions: {
+    gap: spacing.sm,
+  },
+  printersList: {
+    marginTop: spacing.md,
+  },
+  printersTitle: {
+    ...typography.body,
+    color: colors.text,
+    fontWeight: '600',
+    marginBottom: spacing.sm,
+  },
+  printerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.sm,
+  },
+  printerItemInfo: {
+    flex: 1,
+  },
+  printerItemName: {
+    ...typography.body,
+    color: colors.text,
+    fontWeight: '500',
+  },
+  printerItemAddress: {
     ...typography.bodySmall,
     color: colors.textSecondary,
     marginTop: spacing.xs,

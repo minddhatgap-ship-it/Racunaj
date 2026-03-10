@@ -103,6 +103,13 @@ export interface CompanySettings {
   website?: string;
 }
 
+export interface BluetoothPrinter {
+  id: string;
+  name: string;
+  address: string;
+  connected: boolean;
+}
+
 export interface AppSettings {
   theme: 'light' | 'dark';
   testMode: boolean;
@@ -117,4 +124,5 @@ export interface AppSettings {
     certPassword?: string;
     taxNumber: string;
   };
+  bluetoothPrinter?: BluetoothPrinter;
 }

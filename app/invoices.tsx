@@ -10,7 +10,8 @@ import { useAlert } from '@/template';
 import { TestModeWarning } from '@/components';
 import { formatCurrency, formatDate } from '@/services/calculations';
 import { generateFursData, stornoInvoiceOnFurs } from '@/services/furs';
-import { generateInvoicePDF, printInvoice } from '@/services/pdf';
+import { generateInvoicePDF } from '@/services/pdf';
+import { printReceiptBluetooth } from '@/services/bluetooth-printer';
 import type { Invoice } from '@/types';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 
@@ -84,10 +85,21 @@ export default function InvoicesScreen() {
   };
 
   const handlePrint = async (invoice: Invoice) => {
+    if (!settings.bluetoothPrinter) {
+      showAlert('Tiskalnik ni nastavljen', 'Najprej povežite Bluetooth tiskalnik v nastavitvah');
+      return;
+    }
+
     try {
-      await printInvoice(invoice, settings.company, invoice.fursData);
+      await printReceiptBluetooth(
+        invoice,
+        settings.company,
+        settings.bluetoothPrinter,
+        invoice.fursData
+      );
+      showAlert('Uspeh', 'Račun natisnjen');
     } catch (error) {
-      showAlert('Napaka', 'Napaka pri tiskanju');
+      showAlert('Napaka', 'Napaka pri tiskanju na Bluetooth tiskalniku');
     }
   };
 

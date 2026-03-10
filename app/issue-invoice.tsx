@@ -169,8 +169,35 @@ export default function IssueInvoiceScreen() {
     setStep('success');
   };
 
-  const handlePrint = () => {
-    showAlert('Tiskanje', 'Funkcija tiskanja bo kmalu na voljo');
+  const handlePrint = async () => {
+    if (!settings.bluetoothPrinter) {
+      showAlert('Tiskalnik ni nastavljen', 'Najprej povežite Bluetooth tiskalnik v nastavitvah', [
+        { text: 'V redu' },
+        { text: 'Odpri nastavitve', onPress: () => router.push('/settings') },
+      ]);
+      return;
+    }
+
+    const invoices = await import('@/services/storage').then(s => s.getInvoices());
+    const invoice = invoices.find(i => i.id === issuedInvoiceId);
+    
+    if (!invoice) {
+      showAlert('Napaka', 'Račun ni najden');
+      return;
+    }
+
+    try {
+      const { printReceiptBluetooth } = await import('@/services/bluetooth-printer');
+      await printReceiptBluetooth(
+        invoice,
+        settings.company,
+        settings.bluetoothPrinter,
+        invoice.fursData
+      );
+      showAlert('Uspeh', 'Račun natisnjen na Bluetooth tiskalniku');
+    } catch (error) {
+      showAlert('Napaka', 'Napaka pri tiskanju. Preverite povezavo s tiskalnikom.');
+    }
   };
 
   const handleNewInvoice = () => {
