@@ -23,12 +23,11 @@ export interface FursData {
  * V produkciji: digitalni podpis z FURS certifikatom
  * Demo verzija: hash na osnovi podatkov računa
  */
-export function generateZOI(invoice: Invoice, company: CompanySettings): string {
+function generateZOI(taxNumber: string, invoiceNumber: string, timestamp: number): string {
   const data = [
-    company.taxNumber,
-    invoice.issueDate.toString(),
-    invoice.invoiceNumber,
-    invoice.total.toFixed(2),
+    taxNumber,
+    timestamp.toString(),
+    invoiceNumber,
   ].join('|');
   
   // Demo implementacija - v produkciji uporabite FURS certifikat za RSA podpis
@@ -40,9 +39,9 @@ export function generateZOI(invoice: Invoice, company: CompanySettings): string 
  * Generira EOR (Enolična oznaka računa)
  * Format: [davčna številka]-[oznaka naprave]-[številka računa]
  */
-export function generateEOR(invoice: Invoice, company: CompanySettings): string {
+function generateEOR(zoi: string, taxNumber: string): string {
   const deviceId = 'B1'; // ID naprave - v produkciji nastavite pravilno
-  return `${company.taxNumber}-${deviceId}-${invoice.invoiceNumber}`;
+  return `${taxNumber}-${deviceId}-${zoi.substring(0, 8)}`;
 }
 
 /**
@@ -65,9 +64,9 @@ export function generateQRContent(fursData: FursData, invoice: Invoice): string 
 /**
  * Generira vse FURS podatke za račun
  */
-export function generateFursData(invoice: Invoice, company: CompanySettings): FursData {
-  const zoi = generateZOI(invoice, company);
-  const eor = generateEOR(invoice, company);
+export function generateFursData(invoice: Invoice, company: CompanySettings): Invoice['fursData'] {
+  const zoi = generateZOI(company.taxNumber, invoice.invoiceNumber, invoice.issueDate);
+  const eor = generateEOR(zoi, company.taxNumber);
   const timestamp = Date.now();
   
   const qrData: FursData = { zoi, eor, qrCode: '', timestamp };
@@ -78,6 +77,78 @@ export function generateFursData(invoice: Invoice, company: CompanySettings): Fu
     eor,
     qrCode,
     timestamp,
+  };
+}
+
+/**
+ * Stornira račun na FURS
+ */
+export async function stornoInvoiceOnFurs(
+  originalInvoice: Invoice,
+  company: CompanySettings,
+  reason: string
+): Promise<Invoice['fursData']> {
+  // V produkciji: pošlji storno na FURS API
+  // https://www.fu.gov.si/nadzor/podrocja/fiskalizacija_racunov/
+  
+  const stornoZoi = generateZOI(
+    company.taxNumber,
+    `STORNO-${originalInvoice.invoiceNumber}`,
+    Date.now()
+  );
+  
+  const stornoEor = generateEOR(
+    stornoZoi,
+    company.taxNumber
+  );
+  
+  console.log('FURS Storno:', {
+    original: originalInvoice.invoiceNumber,
+    reason,
+    stornoZoi,
+    stornoEor,
+  });
+  
+  return {
+    zoi: stornoZoi,
+    eor: stornoEor,
+    qrCode: `STORNO:${stornoEor}`,
+    timestamp: Date.now(),
+  };
+}
+
+/**
+ * Popravi račun na FURS
+ */
+export async function correctInvoiceOnFurs(
+  originalInvoice: Invoice,
+  correctedInvoice: Partial<Invoice>,
+  company: CompanySettings
+): Promise<Invoice['fursData']> {
+  // V produkciji: pošlji popravek na FURS API
+  
+  const correctionZoi = generateZOI(
+    company.taxNumber,
+    `CORRECTION-${originalInvoice.invoiceNumber}`,
+    Date.now()
+  );
+  
+  const correctionEor = generateEOR(
+    correctionZoi,
+    company.taxNumber
+  );
+  
+  console.log('FURS Correction:', {
+    original: originalInvoice.invoiceNumber,
+    correctionZoi,
+    correctionEor,
+  });
+  
+  return {
+    zoi: correctionZoi,
+    eor: correctionEor,
+    qrCode: `CORRECTION:${correctionEor}`,
+    timestamp: Date.now(),
   };
 }
 
@@ -163,7 +234,7 @@ export function prepareFursApiRequest(
     invoiceTime: date.toLocaleTimeString('sl-SI', { hour12: false }),
     taxesPerSeller,
     invoiceAmount: invoice.total,
-    paymentMethod: invoice.paymentMethod === 'Gotovina' ? 'GOTOVINA' : 'GOTOVINA',
+    paymentMethod: typeof invoice.paymentMethod === 'string' ? 'GOTOVINA' : 'GOTOVINA',
     protectedId: fursData.zoi,
   };
 }

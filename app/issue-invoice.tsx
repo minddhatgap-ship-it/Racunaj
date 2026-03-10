@@ -11,7 +11,8 @@ import { useSettings } from '@/hooks/useSettings';
 import { useAlert } from '@/template';
 import { calculateInvoiceItem, calculateInvoiceTotals, formatCurrency } from '@/services/calculations';
 import { generateFursData } from '@/services/furs';
-import type { InvoiceItem, Service } from '@/types';
+import { initiateSumUpPayment } from '@/services/sumup';
+import type { InvoiceItem, Service, PaymentMethod } from '@/types';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
 
 type Step = 'issue' | 'success';
@@ -34,7 +35,9 @@ export default function IssueInvoiceScreen() {
   const [clientPhone, setClientPhone] = useState('');
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [enableFurs, setEnableFurs] = useState(true);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [issuedInvoiceId, setIssuedInvoiceId] = useState<string>('');
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   const addItem = (service: Service) => {
     const calculations = calculateInvoiceItem(1, service.price, service.ddvRate);
@@ -101,11 +104,11 @@ export default function IssueInvoiceScreen() {
       items,
       issueDate: now,
       dueDate: now + 15 * 24 * 60 * 60 * 1000,
-      paymentMethod: 'Transakcijski račun',
+      paymentMethod,
       subtotal: totals.subtotal,
       totalDDV: totals.totalDDV,
       total: totals.total,
-      isPaid: false,
+      isPaid: paymentMethod === 'cash' || paymentMethod === 'card',
       fursData: undefined,
     };
 
@@ -120,6 +123,49 @@ export default function IssueInvoiceScreen() {
 
     const invoiceId = await addInvoice(newInvoice);
     setIssuedInvoiceId(invoiceId);
+
+    // Če je izbrano kartično plačilo, izvedi SumUp transakcijo
+    if (paymentMethod === 'card' && settings.sumup?.enabled) {
+      try {
+        setIsProcessingPayment(true);
+        const sumupPayment = await initiateSumUpPayment(
+          {
+            apiKey: settings.sumup.apiKey,
+            merchantCode: settings.sumup.merchantCode,
+          },
+          {
+            amount: totals.total,
+            currency: 'EUR',
+            description: `Račun ${newInvoice.type === 'invoice' ? 'R' : 'P'}-${Date.now()}`,
+            invoiceId,
+          }
+        );
+
+        // Posodobi račun s SumUp podatki
+        const invoices = await import('@/services/storage').then(s => s.getInvoices());
+        const invoice = invoices.find(i => i.id === invoiceId);
+        if (invoice) {
+          await import('@/services/storage').then(s => 
+            s.saveInvoices(
+              invoices.map(i => 
+                i.id === invoiceId 
+                  ? { ...i, sumUpPayment: sumupPayment, isPaid: sumupPayment.status === 'SUCCESSFUL' }
+                  : i
+              )
+            )
+          );
+        }
+
+        if (sumupPayment.status !== 'SUCCESSFUL') {
+          showAlert('Opozorilo', 'Plačilo ni bilo uspešno');
+        }
+      } catch (error) {
+        showAlert('Napaka', 'Napaka pri procesiranju kartičnega plačila');
+      } finally {
+        setIsProcessingPayment(false);
+      }
+    }
+
     setStep('success');
   };
 
@@ -139,7 +185,9 @@ export default function IssueInvoiceScreen() {
     setClientPhone('');
     setItems([]);
     setEnableFurs(true);
+    setPaymentMethod('cash');
     setIssuedInvoiceId('');
+    setIsProcessingPayment(false);
   };
 
   const totals = calculateInvoiceTotals(items);
@@ -327,6 +375,82 @@ export default function IssueInvoiceScreen() {
                 </Card>
               )}
 
+              {/* Payment Method */}
+              <Card style={styles.section}>
+                <Text style={styles.sectionTitle}>Način plačila</Text>
+                <View style={styles.paymentButtons}>
+                  <Pressable
+                    style={[
+                      styles.paymentButton,
+                      paymentMethod === 'cash' && styles.paymentButtonActive,
+                    ]}
+                    onPress={() => setPaymentMethod('cash')}
+                  >
+                    <MaterialIcons 
+                      name="money" 
+                      size={28} 
+                      color={paymentMethod === 'cash' ? colors.text : colors.textSecondary} 
+                    />
+                    <Text style={[
+                      styles.paymentButtonText,
+                      paymentMethod === 'cash' && styles.paymentButtonTextActive,
+                    ]}>
+                      Gotovina
+                    </Text>
+                  </Pressable>
+
+                  <Pressable
+                    style={[
+                      styles.paymentButton,
+                      paymentMethod === 'card' && styles.paymentButtonActive,
+                      !settings.sumup?.enabled && styles.paymentButtonDisabled,
+                    ]}
+                    onPress={() => {
+                      if (!settings.sumup?.enabled) {
+                        showAlert('SumUp ni nastavljen', 'Omogočite SumUp v nastavitvah');
+                        return;
+                      }
+                      setPaymentMethod('card');
+                    }}
+                  >
+                    <MaterialIcons 
+                      name="credit-card" 
+                      size={28} 
+                      color={paymentMethod === 'card' ? colors.text : colors.textSecondary} 
+                    />
+                    <Text style={[
+                      styles.paymentButtonText,
+                      paymentMethod === 'card' && styles.paymentButtonTextActive,
+                    ]}>
+                      Kartica
+                    </Text>
+                    {!settings.sumup?.enabled && (
+                      <Text style={styles.disabledBadge}>Ni nastavljeno</Text>
+                    )}
+                  </Pressable>
+
+                  <Pressable
+                    style={[
+                      styles.paymentButton,
+                      paymentMethod === 'bank_transfer' && styles.paymentButtonActive,
+                    ]}
+                    onPress={() => setPaymentMethod('bank_transfer')}
+                  >
+                    <MaterialIcons 
+                      name="account-balance" 
+                      size={28} 
+                      color={paymentMethod === 'bank_transfer' ? colors.text : colors.textSecondary} 
+                    />
+                    <Text style={[
+                      styles.paymentButtonText,
+                      paymentMethod === 'bank_transfer' && styles.paymentButtonTextActive,
+                    ]}>
+                      Prenos
+                    </Text>
+                  </Pressable>
+                </View>
+              </Card>
+
               {/* FURS Toggle */}
               <Card style={styles.fursCard}>
                 <Pressable 
@@ -357,6 +481,7 @@ export default function IssueInvoiceScreen() {
               title={enableFurs ? 'Izdaj in potrdi na FURS' : 'Izdaj račun'}
               onPress={handleIssue}
               size="medium"
+              loading={isProcessingPayment}
               icon={<MaterialIcons name={enableFurs ? 'verified' : 'check-circle'} size={20} color={colors.text} />}
             />
           </View>
@@ -677,5 +802,41 @@ const styles = StyleSheet.create({
     width: '100%',
     marginTop: spacing.xl,
     gap: spacing.md,
+  },
+  paymentButtons: {
+    flexDirection: 'column',
+    gap: spacing.md,
+  },
+  paymentButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.surface,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: borderRadius.lg,
+  },
+  paymentButtonActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  paymentButtonDisabled: {
+    opacity: 0.5,
+  },
+  paymentButtonText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  paymentButtonTextActive: {
+    color: colors.text,
+  },
+  disabledBadge: {
+    ...typography.bodySmall,
+    color: colors.danger,
+    fontSize: 10,
+    marginLeft: spacing.sm,
   },
 });

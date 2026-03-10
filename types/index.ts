@@ -36,6 +36,8 @@ export interface InvoiceItem {
   totalWithDDV: number;
 }
 
+export type PaymentMethod = 'cash' | 'card' | 'bank_transfer';
+
 export interface Invoice {
   id: string;
   invoiceNumber: string;
@@ -45,7 +47,7 @@ export interface Invoice {
   items: InvoiceItem[];
   issueDate: number;
   dueDate: number;
-  paymentMethod: string;
+  paymentMethod: PaymentMethod;
   notes?: string;
   
   subtotal: number;
@@ -105,4 +107,14 @@ export interface AppSettings {
   theme: 'light' | 'dark';
   testMode: boolean;
   company: CompanySettings;
+  sumup?: {
+    apiKey: string;
+    merchantCode: string;
+    enabled: boolean;
+  };
+  furs?: {
+    certPath?: string;
+    certPassword?: string;
+    taxNumber: string;
+  };
 }

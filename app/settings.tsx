@@ -20,7 +20,7 @@ const TAX_SYSTEMS: { value: TaxSystem; label: string; description: string }[] = 
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { settings, updateCompany, updateTheme, updateTestMode } = useSettings();
+  const { settings, updateCompany, updateTheme, updateTestMode, updateSumUp, updateFurs } = useSettings();
   const { showAlert } = useAlert();
 
   const [name, setName] = useState(settings.company.name);
@@ -33,6 +33,15 @@ export default function SettingsScreen() {
   const [iban, setIban] = useState(settings.company.iban || '');
   const [phone, setPhone] = useState(settings.company.phone || '');
   const [email, setEmail] = useState(settings.company.email || '');
+
+  // SumUp nastavitve
+  const [sumupEnabled, setSumupEnabled] = useState(settings.sumup?.enabled || false);
+  const [sumupApiKey, setSumupApiKey] = useState(settings.sumup?.apiKey || '');
+  const [sumupMerchantCode, setSumupMerchantCode] = useState(settings.sumup?.merchantCode || '');
+
+  // FURS nastavitve
+  const [fursCertPassword, setFursCertPassword] = useState(settings.furs?.certPassword || '');
+  const [fursTaxNumber, setFursTaxNumber] = useState(settings.furs?.taxNumber || taxNumber);
 
   const handleSave = async () => {
     await updateCompany({
@@ -47,6 +56,18 @@ export default function SettingsScreen() {
       phone: phone || undefined,
       email: email || undefined,
     });
+
+    await updateSumUp({
+      enabled: sumupEnabled,
+      apiKey: sumupApiKey,
+      merchantCode: sumupMerchantCode,
+    });
+
+    await updateFurs({
+      certPassword: fursCertPassword || undefined,
+      taxNumber: fursTaxNumber,
+    });
+
     showAlert('Uspeh', 'Nastavitve shranjene');
   };
 
@@ -165,31 +186,89 @@ export default function SettingsScreen() {
             ))}
           </Card>
 
-          {/* Theme */}
+          {/* FURS Certificate */}
           <Card style={styles.section}>
-            <Text style={styles.sectionTitle}>Tema</Text>
-            <View style={styles.themeButtons}>
-              <Pressable
-                style={[
-                  styles.themeButton,
-                  settings.theme === 'light' && styles.themeButtonActive,
-                ]}
-                onPress={() => updateTheme('light')}
-              >
-                <MaterialIcons name="light-mode" size={24} color={colors.text} />
-                <Text style={styles.themeButtonText}>Svetla</Text>
-              </Pressable>
-              <Pressable
-                style={[
-                  styles.themeButton,
-                  settings.theme === 'dark' && styles.themeButtonActive,
-                ]}
-                onPress={() => updateTheme('dark')}
-              >
-                <MaterialIcons name="dark-mode" size={24} color={colors.text} />
-                <Text style={styles.themeButtonText}>Temna</Text>
-              </Pressable>
+            <View style={styles.sectionHeader}>
+              <MaterialIcons name="verified-user" size={24} color={colors.success} />
+              <Text style={styles.sectionTitle}>FURS Certifikat</Text>
             </View>
+            <Text style={styles.infoText}>
+              Za davčno potrjevanje računov potrebujete digitalni certifikat (P12) iz FURS portala.
+            </Text>
+            <Input
+              label="Davčna številka za FURS"
+              value={fursTaxNumber}
+              onChangeText={setFursTaxNumber}
+              placeholder="SI12345678"
+            />
+            <Input
+              label="Geslo certifikata"
+              value={fursCertPassword}
+              onChangeText={setFursCertPassword}
+              placeholder="••••••••"
+              secureTextEntry
+            />
+            <View style={styles.infoBox}>
+              <MaterialIcons name="info" size={20} color={colors.primary} />
+              <Text style={styles.infoBoxText}>
+                Certifikat (P12) prenesite iz FURS portala eDavki. V produkcijski verziji aplikacije ga boste lahko naložili preko nastavitev.
+              </Text>
+            </View>
+          </Card>
+
+          {/* SumUp Payment */}
+          <Card style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <MaterialIcons name="credit-card" size={24} color={colors.secondary} />
+              <Text style={styles.sectionTitle}>SumUp kartična plačila</Text>
+            </View>
+            <Pressable
+              style={[
+                styles.toggleButton,
+                sumupEnabled && styles.toggleButtonActive,
+              ]}
+              onPress={() => setSumupEnabled(!sumupEnabled)}
+            >
+              <View style={styles.toggleContent}>
+                <MaterialIcons 
+                  name={sumupEnabled ? 'check-box' : 'check-box-outline-blank'} 
+                  size={24} 
+                  color={sumupEnabled ? colors.success : colors.textMuted} 
+                />
+                <View style={styles.toggleInfo}>
+                  <Text style={[styles.toggleTitle, sumupEnabled && styles.toggleTitleActive]}>
+                    Omogoči SumUp plačila
+                  </Text>
+                  <Text style={styles.toggleDesc}>
+                    Sprejemajte kartična plačila preko SumUp terminala
+                  </Text>
+                </View>
+              </View>
+            </Pressable>
+
+            {sumupEnabled && (
+              <>
+                <Input
+                  label="SumUp API ključ"
+                  value={sumupApiKey}
+                  onChangeText={setSumupApiKey}
+                  placeholder="sup_sk_••••••••••••••••"
+                  secureTextEntry
+                />
+                <Input
+                  label="Merchant Code"
+                  value={sumupMerchantCode}
+                  onChangeText={setSumupMerchantCode}
+                  placeholder="MXXXXXXXXX"
+                />
+                <View style={styles.infoBox}>
+                  <MaterialIcons name="info" size={20} color={colors.primary} />
+                  <Text style={styles.infoBoxText}>
+                    API ključ pridobite v SumUp Developer Portal (developer.sumup.com). Potrebujete aktiven SumUp trgovski račun.
+                  </Text>
+                </View>
+              </>
+            )}
           </Card>
 
           {/* Test Mode */}
@@ -223,6 +302,33 @@ export default function SettingsScreen() {
                 <MaterialIcons name="warning" size={24} color={colors.warning} />
               )}
             </Pressable>
+          </Card>
+
+          {/* Theme */}
+          <Card style={styles.section}>
+            <Text style={styles.sectionTitle}>Tema</Text>
+            <View style={styles.themeButtons}>
+              <Pressable
+                style={[
+                  styles.themeButton,
+                  settings.theme === 'light' && styles.themeButtonActive,
+                ]}
+                onPress={() => updateTheme('light')}
+              >
+                <MaterialIcons name="light-mode" size={24} color={colors.text} />
+                <Text style={styles.themeButtonText}>Svetla</Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  styles.themeButton,
+                  settings.theme === 'dark' && styles.themeButtonActive,
+                ]}
+                onPress={() => updateTheme('dark')}
+              >
+                <MaterialIcons name="dark-mode" size={24} color={colors.text} />
+                <Text style={styles.themeButtonText}>Temna</Text>
+              </Pressable>
+            </View>
           </Card>
 
           <Button title="Shrani nastavitve" onPress={handleSave} size="large" />
@@ -262,10 +368,15 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: spacing.lg,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
   sectionTitle: {
     ...typography.h3,
     color: colors.text,
-    marginBottom: spacing.md,
   },
   row: {
     flexDirection: 'row',
@@ -307,6 +418,64 @@ const styles = StyleSheet.create({
   },
   taxButtonDescActive: {
     color: colors.textSecondary,
+  },
+  infoText: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
+    lineHeight: 20,
+  },
+  infoBox: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    padding: spacing.md,
+    backgroundColor: colors.primary + '10',
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.primary + '30',
+  },
+  infoBoxText: {
+    flex: 1,
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  toggleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.background,
+    borderWidth: 2,
+    borderColor: colors.border,
+    marginBottom: spacing.md,
+  },
+  toggleButtonActive: {
+    backgroundColor: colors.success + '10',
+    borderColor: colors.success,
+  },
+  toggleContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    flex: 1,
+  },
+  toggleInfo: {
+    flex: 1,
+  },
+  toggleTitle: {
+    ...typography.body,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  toggleTitleActive: {
+    color: colors.success,
+  },
+  toggleDesc: {
+    ...typography.bodySmall,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
   },
   themeButtons: {
     flexDirection: 'row',

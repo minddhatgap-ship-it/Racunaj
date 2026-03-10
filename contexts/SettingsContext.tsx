@@ -7,6 +7,8 @@ interface SettingsContextType {
   updateCompany: (company: Partial<AppSettings['company']>) => Promise<void>;
   updateTheme: (theme: 'light' | 'dark') => Promise<void>;
   updateTestMode: (testMode: boolean) => Promise<void>;
+  updateSumUp: (sumup: AppSettings['sumup']) => Promise<void>;
+  updateFurs: (furs: AppSettings['furs']) => Promise<void>;
   isLoading: boolean;
 }
 
@@ -71,8 +73,20 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(updated));
   }
 
+  async function updateSumUp(sumup: AppSettings['sumup']) {
+    const updated = { ...settings, sumup };
+    setSettings(updated);
+    await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(updated));
+  }
+
+  async function updateFurs(furs: AppSettings['furs']) {
+    const updated = { ...settings, furs };
+    setSettings(updated);
+    await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(updated));
+  }
+
   return (
-    <SettingsContext.Provider value={{ settings, updateCompany, updateTheme, updateTestMode, isLoading }}>
+    <SettingsContext.Provider value={{ settings, updateCompany, updateTheme, updateTestMode, updateSumUp, updateFurs, isLoading }}>
       {children}
     </SettingsContext.Provider>
   );

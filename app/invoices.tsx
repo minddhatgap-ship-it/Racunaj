@@ -9,7 +9,7 @@ import { useSettings } from '@/hooks/useSettings';
 import { useAlert } from '@/template';
 import { TestModeWarning } from '@/components';
 import { formatCurrency, formatDate } from '@/services/calculations';
-import { generateFursData } from '@/services/furs';
+import { generateFursData, stornoInvoiceOnFurs } from '@/services/furs';
 import { generateInvoicePDF, printInvoice } from '@/services/pdf';
 import type { Invoice } from '@/types';
 import { colors, spacing, typography, borderRadius } from '@/constants/theme';
@@ -91,6 +91,29 @@ export default function InvoicesScreen() {
     }
   };
 
+  const handleStornoInvoice = async (invoice: Invoice) => {
+    showAlert('Storniraj račun?', `Račun ${invoice.invoiceNumber} bo storniran na FURS`, [
+      { text: 'Prekliči', style: 'cancel' },
+      {
+        text: 'Storniraj',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const stornoData = await stornoInvoiceOnFurs(
+              invoice,
+              settings.company,
+              'Storno računa'
+            );
+            // V produkciji: ustvari nov storno račun
+            showAlert('Uspeh', `Račun ${invoice.invoiceNumber} storniran`);
+          } catch (error) {
+            showAlert('Napaka', 'Napaka pri storniranju računa');
+          }
+        },
+      },
+    ]);
+  };
+
   const showInvoiceActions = (invoice: Invoice) => {
     showAlert(
       `Račun ${invoice.invoiceNumber}`,
@@ -100,6 +123,11 @@ export default function InvoicesScreen() {
         !invoice.fursData && {
           text: '🔒 Davčno potrdi',
           onPress: () => handleFiscalize(invoice),
+        },
+        invoice.fursData && {
+          text: '❌ Storniraj račun',
+          style: 'destructive',
+          onPress: () => handleStornoInvoice(invoice),
         },
         {
           text: '📄 Izvozi PDF',
@@ -314,7 +342,7 @@ const styles = StyleSheet.create({
   iconContainer: {
     position: 'relative',
   },
-  fursBadge: {
+  fursbadge: {
     position: 'absolute',
     top: -4,
     right: -4,
