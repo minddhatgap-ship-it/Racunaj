@@ -358,21 +358,51 @@ export async function initBluetooth(): Promise<void> {
  */
 export async function scanBluetoothPrinters(): Promise<BluetoothPrinter[]> {
   try {
+    console.log('Začetek Bluetooth scan...');
     await initBluetooth();
     
-    // Začni scan
-    const devices = await BluetoothManager.scanDevices();
+    // Pridobi seznam sparjenih naprav (list) ali skeniraj nove (scanDevices)
+    // react-native-bluetooth-escpos-printer vrne JSON string, ne array
+    let devicesJson: string;
+    
+    try {
+      // Najprej poskusi pridobiti sparjene naprave
+      devicesJson = await BluetoothManager.list();
+      console.log('Sparjene naprave:', devicesJson);
+    } catch (listError) {
+      console.log('List failed, trying scan...', listError);
+      // Če to ne deluje, poskusi skenirati
+      devicesJson = await BluetoothManager.scanDevices();
+      console.log('Scan result:', devicesJson);
+    }
+    
+    // Parse JSON rezultat
+    let devices: any[] = [];
+    try {
+      devices = JSON.parse(devicesJson);
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      // Če je že array, uporabi direktno
+      if (Array.isArray(devicesJson)) {
+        devices = devicesJson;
+      } else {
+        throw new Error('Napaka pri obdelavi rezultatov');
+      }
+    }
+    
+    console.log('Najdenih naprav:', devices.length);
     
     // Pretvori v naš format
     return devices.map((device: any) => ({
-      id: device.address || device.id,
+      id: device.address || device.id || device.name,
       name: device.name || 'Neznana naprava',
-      address: device.address,
+      address: device.address || device.id,
       connected: false,
     }));
   } catch (error) {
     console.error('Napaka pri iskanju tiskalnikov:', error);
-    throw new Error('Napaka pri iskanju Bluetooth naprav. Preverite ali je Bluetooth vklopljen.');
+    const errorMessage = error instanceof Error ? error.message : 'Neznana napaka';
+    throw new Error(`Napaka pri iskanju Bluetooth naprav: ${errorMessage}. Preverite ali je Bluetooth vklopljen in ali imate dovoljenja.`);
   }
 }
 
