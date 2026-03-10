@@ -261,78 +261,95 @@ function getPaymentMethodText(method: string): string {
 
 /**
  * Bluetooth Printer Manager
- * 
- * POMEMBNO: Za produkcijo uporabite react-native-bluetooth-escpos-printer
- * npm install react-native-bluetooth-escpos-printer
+ * Uporablja react-native-bluetooth-escpos-printer za dejanske Bluetooth tiskalnik operacije
  */
 
-// Mock implementacija - v produkciji zamenjajte z dejanskim paketom
-interface BluetoothManager {
-  enableBluetooth(): Promise<void>;
-  scanDevices(): Promise<BluetoothPrinter[]>;
-  connect(address: string): Promise<void>;
-  disconnect(): Promise<void>;
-  printText(text: string, encoding?: string): Promise<void>;
-  printRawData(data: string): Promise<void>;
+import { Platform, PermissionsAndroid } from 'react-native';
+
+// Import dejanskega Bluetooth ESC/POS paketa
+let BluetoothManager: any;
+let BluetoothEscposPrinter: any;
+
+try {
+  // Poskusi naložiti paket (bo avtomatsko nameščen)
+  const printer = require('react-native-bluetooth-escpos-printer');
+  BluetoothManager = printer.BluetoothManager;
+  BluetoothEscposPrinter = printer.BluetoothEscposPrinter;
+} catch (error) {
+  console.warn('react-native-bluetooth-escpos-printer ni nameščen. Bluetooth tiskanje ne bo delovalo.');
+  // Fallback na mock če paket ni na voljo
+  BluetoothManager = {
+    enableBluetooth: async () => console.log('Mock: Bluetooth enabled'),
+    scanDevices: async () => [],
+    connect: async () => console.log('Mock: Connected'),
+    disconnect: async () => console.log('Mock: Disconnected'),
+  };
+  BluetoothEscposPrinter = {
+    printerInit: async () => {},
+    printText: async () => {},
+    printColumn: async () => {},
+    printQRCode: async () => {},
+    printerAlign: async () => {},
+    setBlob: async () => {},
+    printAndFeedPaper: async () => {},
+    cutPaper: async () => {},
+  };
 }
 
-// Za produkcijo:
-// import { BluetoothManager } from 'react-native-bluetooth-escpos-printer';
-
 /**
- * Mock Bluetooth Manager za razvoj
+ * Zahteva Bluetooth permissions za Android
  */
-const MockBluetoothManager: BluetoothManager = {
-  async enableBluetooth() {
-    console.log('Bluetooth omogočen (MOCK)');
-  },
-  
-  async scanDevices() {
-    console.log('Iskanje naprav (MOCK)');
-    // Simulirani tiskalniki
-    return [
-      {
-        id: 'mock-1',
-        name: 'POS-58MM-001',
-        address: '00:11:22:33:44:55',
-        connected: false,
-      },
-      {
-        id: 'mock-2',
-        name: 'Thermal Printer',
-        address: '00:11:22:33:44:66',
-        connected: false,
-      },
-    ];
-  },
-  
-  async connect(address: string) {
-    console.log(`Povezovanje s tiskalnikom: ${address} (MOCK)`);
-  },
-  
-  async disconnect() {
-    console.log('Tiskalnik odklopljen (MOCK)');
-  },
-  
-  async printText(text: string) {
-    console.log('Tiskanje besedila (MOCK):', text);
-  },
-  
-  async printRawData(data: string) {
-    console.log('Tiskanje ESC/POS komand (MOCK)');
-    console.log('Dolžina komand:', data.length);
-  },
-};
+async function requestBluetoothPermissions(): Promise<boolean> {
+  if (Platform.OS === 'android') {
+    try {
+      // Android 12+ zahteva nove permissions
+      if (Platform.Version >= 31) {
+        const granted = await PermissionsAndroid.requestMultiple([
+          PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+          PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+        ]);
+        
+        return (
+          granted['android.permission.BLUETOOTH_SCAN'] === PermissionsAndroid.RESULTS.GRANTED &&
+          granted['android.permission.BLUETOOTH_CONNECT'] === PermissionsAndroid.RESULTS.GRANTED
+        );
+      } else {
+        // Starejše verzije Androida
+        const granted = await PermissionsAndroid.requestMultiple([
+          PermissionsAndroid.PERMISSIONS.BLUETOOTH,
+          PermissionsAndroid.PERMISSIONS.BLUETOOTH_ADMIN,
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        ]);
+        
+        return (
+          granted['android.permission.BLUETOOTH'] === PermissionsAndroid.RESULTS.GRANTED &&
+          granted['android.permission.BLUETOOTH_ADMIN'] === PermissionsAndroid.RESULTS.GRANTED
+        );
+      }
+    } catch (error) {
+      console.error('Permission request error:', error);
+      return false;
+    }
+  }
+  return true; // iOS ne potrebuje runtime permissions
+}
 
 /**
  * Inicializira Bluetooth
  */
 export async function initBluetooth(): Promise<void> {
   try {
-    await MockBluetoothManager.enableBluetooth();
+    // Preveri permissions
+    const hasPermission = await requestBluetoothPermissions();
+    if (!hasPermission) {
+      throw new Error('Bluetooth permissions niso odobrene');
+    }
+    
+    // Omogoči Bluetooth
+    await BluetoothManager.enableBluetooth();
   } catch (error) {
     console.error('Bluetooth napaka:', error);
-    throw new Error('Napaka pri omogočanju Bluetooth');
+    throw new Error('Napaka pri omogočanju Bluetooth. Preverite ali je Bluetooth vklopljen.');
   }
 }
 
@@ -342,11 +359,20 @@ export async function initBluetooth(): Promise<void> {
 export async function scanBluetoothPrinters(): Promise<BluetoothPrinter[]> {
   try {
     await initBluetooth();
-    const devices = await MockBluetoothManager.scanDevices();
-    return devices;
+    
+    // Začni scan
+    const devices = await BluetoothManager.scanDevices();
+    
+    // Pretvori v naš format
+    return devices.map((device: any) => ({
+      id: device.address || device.id,
+      name: device.name || 'Neznana naprava',
+      address: device.address,
+      connected: false,
+    }));
   } catch (error) {
     console.error('Napaka pri iskanju tiskalnikov:', error);
-    throw new Error('Napaka pri iskanju Bluetooth naprav');
+    throw new Error('Napaka pri iskanju Bluetooth naprav. Preverite ali je Bluetooth vklopljen.');
   }
 }
 
@@ -355,10 +381,15 @@ export async function scanBluetoothPrinters(): Promise<BluetoothPrinter[]> {
  */
 export async function connectPrinter(address: string): Promise<void> {
   try {
-    await MockBluetoothManager.connect(address);
+    console.log('Povezovanje s tiskalnikom:', address);
+    await BluetoothManager.connect(address);
+    console.log('Povezava uspešna');
+    
+    // Inicializiraj tiskalnik
+    await BluetoothEscposPrinter.printerInit();
   } catch (error) {
     console.error('Napaka pri povezovanju:', error);
-    throw new Error('Napaka pri povezovanju s tiskalnikom');
+    throw new Error('Napaka pri povezovanju s tiskalnikom. Preverite ali je tiskalnik vklopljen in v dosegu.');
   }
 }
 
@@ -367,10 +398,11 @@ export async function connectPrinter(address: string): Promise<void> {
  */
 export async function disconnectPrinter(): Promise<void> {
   try {
-    await MockBluetoothManager.disconnect();
+    await BluetoothManager.disconnect();
+    console.log('Tiskalnik odklopljen');
   } catch (error) {
     console.error('Napaka pri odklopu:', error);
-    throw new Error('Napaka pri odklopu tiskalnika');
+    // Ne vrzi napake - odklop ni kritičen
   }
 }
 
@@ -384,21 +416,200 @@ export async function printReceiptBluetooth(
   fursData?: FursData
 ): Promise<void> {
   try {
+    console.log('Začetek tiskanja računa:', invoice.invoiceNumber);
+    
     // Poveži se s tiskalnikom če še ni povezan
     if (!printer.connected) {
       await connectPrinter(printer.address);
     }
 
-    // Generiraj ESC/POS komande
-    const commands = generateReceiptCommands(invoice, company, fursData);
-
-    // Natisni
-    await MockBluetoothManager.printRawData(commands);
-
+    // Inicializacija tiskalnika
+    await BluetoothEscposPrinter.printerInit();
+    await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
+    
+    // HEADER
+    await BluetoothEscposPrinter.setBlob(0);
+    await BluetoothEscposPrinter.printText(`${company.name}\n`, {
+      fonttype: 1,
+      widthtimes: 1,
+      heigthtimes: 1,
+    });
+    await BluetoothEscposPrinter.printText(`${company.owner}\n`, {});
+    await BluetoothEscposPrinter.printText(`${company.address}\n`, {});
+    await BluetoothEscposPrinter.printText(`${company.postalCode} ${company.city}\n`, {});
+    await BluetoothEscposPrinter.printText(`Davcna st.: ${company.taxNumber}\n`, {});
+    if (company.phone) await BluetoothEscposPrinter.printText(`${company.phone}\n`, {});
+    await BluetoothEscposPrinter.printText('================================\n', {});
+    
+    // TIP DOKUMENTA
+    await BluetoothEscposPrinter.setBlob(0);
+    const docType = getDocumentType(invoice.type);
+    await BluetoothEscposPrinter.printText(`${docType}\n`, {
+      fonttype: 1,
+      widthtimes: 2,
+      heigthtimes: 2,
+    });
+    await BluetoothEscposPrinter.printText(`${invoice.invoiceNumber}\n`, {
+      fonttype: 1,
+    });
+    await BluetoothEscposPrinter.printText('================================\n', {});
+    
+    // DATUM
+    await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.LEFT);
+    await BluetoothEscposPrinter.printColumn(
+      [16, 16],
+      [BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.RIGHT],
+      ['Datum:', formatDate(invoice.issueDate)],
+      {}
+    );
+    
+    if (invoice.type === 'invoice') {
+      await BluetoothEscposPrinter.printColumn(
+        [16, 16],
+        [BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.RIGHT],
+        ['Rok placila:', formatDate(invoice.dueDate)],
+        {}
+      );
+    }
+    
+    await BluetoothEscposPrinter.printColumn(
+      [16, 16],
+      [BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.RIGHT],
+      ['Nacin placila:', getPaymentMethodText(invoice.paymentMethod)],
+      {}
+    );
+    await BluetoothEscposPrinter.printText('--------------------------------\n', {});
+    
+    // STRANKA
+    if (invoice.clientData.type === 'company') {
+      await BluetoothEscposPrinter.printText('STRANKA:\n', { fonttype: 1 });
+      await BluetoothEscposPrinter.printText(`${invoice.clientData.name}\n`, {});
+      await BluetoothEscposPrinter.printText(`${invoice.clientData.address}\n`, {});
+      await BluetoothEscposPrinter.printText(`${invoice.clientData.postalCode} ${invoice.clientData.city}\n`, {});
+      if (invoice.clientData.taxNumber) {
+        await BluetoothEscposPrinter.printText(`Davcna st.: ${invoice.clientData.taxNumber}\n`, {});
+      }
+    } else {
+      await BluetoothEscposPrinter.printColumn(
+        [16, 16],
+        [BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.RIGHT],
+        ['Stranka:', 'Fizicna oseba'],
+        {}
+      );
+    }
+    await BluetoothEscposPrinter.printText('--------------------------------\n', {});
+    
+    // POSTAVKE
+    await BluetoothEscposPrinter.printText('POSTAVKE\n', { fonttype: 1 });
+    await BluetoothEscposPrinter.printText('--------------------------------\n', {});
+    
+    for (let i = 0; i < invoice.items.length; i++) {
+      const item = invoice.items[i];
+      await BluetoothEscposPrinter.printText(`${i + 1}. ${item.serviceName}\n`, { fonttype: 1 });
+      
+      if (item.description) {
+        const desc = item.description.length > 30 ? item.description.substring(0, 27) + '...' : item.description;
+        await BluetoothEscposPrinter.printText(`  ${desc}\n`, {});
+      }
+      
+      await BluetoothEscposPrinter.printText(`  ${item.quantity} ${item.unit} x ${formatCurrency(item.pricePerUnit)}\n`, {});
+      
+      await BluetoothEscposPrinter.printColumn(
+        [16, 16],
+        [BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.RIGHT],
+        [`  Osnova (${item.ddvRate}% DDV):`, formatCurrency(item.totalWithoutDDV)],
+        {}
+      );
+      
+      await BluetoothEscposPrinter.printColumn(
+        [16, 16],
+        [BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.RIGHT],
+        ['  SKUPAJ:', formatCurrency(item.totalWithDDV)],
+        { fonttype: 1 }
+      );
+      
+      await BluetoothEscposPrinter.printText('\n', {});
+    }
+    
+    await BluetoothEscposPrinter.printText('================================\n', {});
+    
+    // SEŠTEVEK
+    await BluetoothEscposPrinter.printColumn(
+      [16, 16],
+      [BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.RIGHT],
+      ['Skupaj brez DDV:', formatCurrency(invoice.subtotal)],
+      {}
+    );
+    
+    await BluetoothEscposPrinter.printColumn(
+      [16, 16],
+      [BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.RIGHT],
+      ['DDV (22%):', formatCurrency(invoice.totalDDV)],
+      {}
+    );
+    
+    await BluetoothEscposPrinter.printText('--------------------------------\n', {});
+    
+    await BluetoothEscposPrinter.printColumn(
+      [16, 16],
+      [BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.RIGHT],
+      ['SKUPAJ:', formatCurrency(invoice.total)],
+      { fonttype: 1, widthtimes: 1, heigthtimes: 1 }
+    );
+    
+    await BluetoothEscposPrinter.printText('================================\n', {});
+    
+    // FURS PODATKI
+    if (fursData) {
+      await BluetoothEscposPrinter.printText('\n', {});
+      await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
+      await BluetoothEscposPrinter.printText('FURS POTRJEN RACUN\n', { fonttype: 1 });
+      await BluetoothEscposPrinter.printText('--------------------------------\n', {});
+      await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.LEFT);
+      
+      await BluetoothEscposPrinter.printText('ZOI:\n', { fonttype: 1 });
+      // ZOI v več vrsticah
+      const zoiLines = fursData.zoi.match(/.{1,32}/g) || [fursData.zoi];
+      for (const line of zoiLines) {
+        await BluetoothEscposPrinter.printText(`${line}\n`, {});
+      }
+      
+      await BluetoothEscposPrinter.printText('\nEOR:\n', { fonttype: 1 });
+      const eorLines = fursData.eor.match(/.{1,32}/g) || [fursData.eor];
+      for (const line of eorLines) {
+        await BluetoothEscposPrinter.printText(`${line}\n`, {});
+      }
+      
+      await BluetoothEscposPrinter.printText('\n', {});
+      await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
+      await BluetoothEscposPrinter.printText('Preverjanje:\n', {});
+      await BluetoothEscposPrinter.printText('blagajne.fu.gov.si\n', {});
+      await BluetoothEscposPrinter.printText('--------------------------------\n', {});
+    }
+    
+    // OPOMBE
+    if (invoice.notes) {
+      await BluetoothEscposPrinter.printText('\n', {});
+      await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.LEFT);
+      await BluetoothEscposPrinter.printText('OPOMBE:\n', { fonttype: 1 });
+      await BluetoothEscposPrinter.printText(`${invoice.notes}\n`, {});
+      await BluetoothEscposPrinter.printText('--------------------------------\n', {});
+    }
+    
+    // FOOTER
+    await BluetoothEscposPrinter.printText('\n', {});
+    await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
+    await BluetoothEscposPrinter.printText('Hvala za poslovanje!\n', {});
+    if (company.email) await BluetoothEscposPrinter.printText(`${company.email}\n`, {});
+    if (company.website) await BluetoothEscposPrinter.printText(`${company.website}\n`, {});
+    
+    // Prazne vrstice in rez
+    await BluetoothEscposPrinter.printAndFeedPaper(100);
+    
     console.log(`Račun ${invoice.invoiceNumber} natisnjen na ${printer.name}`);
   } catch (error) {
     console.error('Napaka pri tiskanju:', error);
-    throw new Error('Napaka pri tiskanju računa');
+    throw new Error('Napaka pri tiskanju računa. Preverite povezavo s tiskalnikom.');
   }
 }
 
@@ -407,32 +618,37 @@ export async function printReceiptBluetooth(
  */
 export async function printTestReceipt(printer: BluetoothPrinter): Promise<void> {
   try {
+    console.log('Začetek testnega tiskanja...');
+    
     if (!printer.connected) {
       await connectPrinter(printer.address);
     }
 
-    let commands = '';
-    commands += CMD.INIT;
-    commands += CMD.ALIGN_CENTER;
-    commands += CMD.SIZE_DOUBLE;
-    commands += CMD.BOLD_ON;
-    commands += 'TESTNO TISKANJE' + CMD.FEED_LINE;
-    commands += CMD.BOLD_OFF;
-    commands += CMD.SIZE_NORMAL;
-    commands += separator('=') + CMD.FEED_LINE;
-    commands += CMD.ALIGN_LEFT;
-    commands += `Tiskalnik: ${printer.name}` + CMD.FEED_LINE;
-    commands += `Naslov: ${printer.address}` + CMD.FEED_LINE;
-    commands += `Čas: ${new Date().toLocaleString('sl-SI')}` + CMD.FEED_LINE;
-    commands += separator('=') + CMD.FEED_LINE;
-    commands += CMD.ALIGN_CENTER;
-    commands += 'Tiskalnik deluje pravilno!' + CMD.FEED_LINE;
-    commands += CMD.FEED_LINES(3);
-    commands += CMD.CUT_PAPER;
-
-    await MockBluetoothManager.printRawData(commands);
+    await BluetoothEscposPrinter.printerInit();
+    await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
+    
+    await BluetoothEscposPrinter.printText('TESTNO TISKANJE\n', {
+      fonttype: 1,
+      widthtimes: 1,
+      heigthtimes: 1,
+    });
+    
+    await BluetoothEscposPrinter.printText('================================\n', {});
+    
+    await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.LEFT);
+    await BluetoothEscposPrinter.printText(`Tiskalnik: ${printer.name}\n`, {});
+    await BluetoothEscposPrinter.printText(`Naslov: ${printer.address}\n`, {});
+    await BluetoothEscposPrinter.printText(`Cas: ${new Date().toLocaleString('sl-SI')}\n`, {});
+    await BluetoothEscposPrinter.printText('================================\n', {});
+    
+    await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
+    await BluetoothEscposPrinter.printText('Tiskalnik deluje pravilno!\n', {});
+    
+    await BluetoothEscposPrinter.printAndFeedPaper(100);
+    
+    console.log('Testno tiskanje uspešno');
   } catch (error) {
     console.error('Napaka pri testnem tiskanju:', error);
-    throw new Error('Napaka pri testnem tiskanju');
+    throw new Error('Napaka pri testnem tiskanju. Preverite povezavo.');
   }
 }
