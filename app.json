@@ -47,7 +47,6 @@
     },
     "plugins": [
       "expo-router",
-      "react-native-reanimated",
       "expo-web-browser",
       [
         "expo-build-properties",
