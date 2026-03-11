@@ -3,6 +3,13 @@
     "name": "onspace-app",
     "slug": "onspace-app",
     "version": "1.0.0",
+    "extra": {
+      "eas": {
+        "projectId": "c98c4e32-dec6-4526-bb16-38f3abb7c59a"
+        }
+    },
+    "cli": {
+      "appVersionSource": "remote"
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
     "scheme": "onspaceapp",
