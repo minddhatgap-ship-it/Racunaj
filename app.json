@@ -45,18 +45,22 @@
       "output": "static",
       "favicon": "./assets/images/logo.png"
     },
-    "plugins": [
-      "expo-router",
-      "react-native-reanimated",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/logo.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
-        }
-      ],
+  "plugins": [
+  "expo-router",
+  "react-native-reanimated",
+  "expo-web-browser",
+  [
+    "expo-build-properties",
+    {
+      "android": {
+        "minSdkVersion": 24,
+        "targetSdkVersion": 35,
+        "compileSdkVersion": 35,
+        "extraMavenRepos": [] 
+      }
+    }
+  ]
+]
       "expo-web-browser",
       [
         "expo-build-properties",
