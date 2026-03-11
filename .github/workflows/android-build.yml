@@ -47,7 +47,7 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Create google-services.json (optional)
         if: secrets.GOOGLE_SERVICES_JSON != ''
