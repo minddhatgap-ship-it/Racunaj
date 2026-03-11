@@ -5,7 +5,7 @@
   "scripts": {
     "start": "expo start",
     "install": "npm install --legacy-peer-deps",
-    "postinstall": "npm install --legacy-peer-deps"   // optional fallback
+    "postinstall": "npm install --legacy-peer-deps",   // optional fallback
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo start --android",
     "ios": "expo start --ios",
