@@ -10,28 +10,24 @@ on:
         required: true
         default: 'android'
         type: choice
-        options:
-          - android
-          - ios
-          - all
+        options: [android, ios, all]
       profile:
         description: 'Build profile'
         required: true
         default: 'production'
         type: choice
-        options:
-          - development
-          - preview
-          - production
+        options: [development, preview, production]
 
 jobs:
   build:
+    name: EAS Build
     runs-on: ubuntu-latest
+    
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -42,38 +38,34 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      # ─── Fix Dependencies (Essential for SDK 55 / React 19) ──────────────
-      - name: Fix package.json dependencies
+      # ─── Crucial Step: Fix dependencies for React 19 Compatibility ───────
+      - name: Fix package.json for React 19 / SDK 53
         run: |
-          npm pkg set dependencies.expo-web-browser="~55.0.0"
-          npm pkg set dependencies.react-native-screens="~4.23.0"
-          npm pkg set dependencies.expo-splash-screen="~55.0.0"
-          npm pkg set dependencies.expo-status-bar="~55.0.0"
-          npm pkg set dependencies.expo-file-system="~55.0.0"
-          npm pkg set dependencies.expo-sharing="~55.0.0"
-          npm pkg set dependencies.react-native-gesture-handler="~2.30.0"
-          npm pkg set dependencies.react-native-mmkv="^3.2.0"
-          npm pkg delete dependencies.@react-native-async-storage/async-storage 2>/dev/null || true
+          npm pkg set dependencies.expo-web-browser="~14.1.6"
+          npm pkg set dependencies.react-native-screens="~4.11.1"
+          npm pkg set dependencies.expo-splash-screen="~0.30.8"
+          npm pkg set dependencies.expo-status-bar="~2.2.3"
+          npm pkg set dependencies.react-native-gesture-handler="~2.24.0"
+          # Overrides are necessary to force React 19 for old libraries
+          node -e "let p=require('./package.json'); p.overrides={'react':'19.0.0','react-dom':'19.0.0','react-native':'0.79.3'}; require('fs').writeFileSync('package.json', JSON.stringify(p, null, 2))"
 
-      # ─── Install ──────────────────────────────────────────────────────────
       - name: Install dependencies
-        run: npm install --legacy-peer-deps
+        run: |
+          npm install --legacy-peer-deps
+          npm install react-native-bluetooth-escpos-printer --legacy-peer-deps
 
-      # ─── Configure EAS (Prevents "Project Not Configured" error) ──────────
-      # Replace 'YOUR_PROJECT_ID_HERE' with your ID from expo.dev project settings
-      - name: Initialize EAS Project
-        run: npx eas-cli init --id ${{ secrets.EAS_PROJECT_ID }} --non-interactive
-        if: env.EXPO_TOKEN != ''
-        env:
-          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-
-      # ─── EAS Cloud Build ──────────────────────────────────────────────────
+      # ─── The Build Steps (Fixed logic to avoid duplicates) ───────────────
+      
       - name: Build Android with EAS
         if: github.event.inputs.platform == 'android' || github.event.inputs.platform == 'all' || github.event_name == 'push'
         run: |
           eas build --platform android --profile ${{ github.event.inputs.profile || 'production' }} --non-interactive --no-wait
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
       - name: Build iOS with EAS
         if: github.event.inputs.platform == 'ios' || github.event.inputs.platform == 'all'
         run: |
           eas build --platform ios --profile ${{ github.event.inputs.profile || 'production' }} --non-interactive --no-wait
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
