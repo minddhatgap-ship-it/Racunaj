@@ -1,0 +1,111 @@
+name: Android Build
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'apk'
+        type: choice
+        options:
+          - apk
+          - aab
+
+jobs:
+  build:
+    name: Build Android APK/AAB
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create google-services.json (optional)
+        if: secrets.GOOGLE_SERVICES_JSON != ''
+        run: echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > android/app/google-services.json
+
+      - name: Prebuild Android
+        run: npx expo prebuild --platform android --clean
+
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
+
+      - name: Build Android APK
+        if: github.event.inputs.build_type == 'apk' || github.event.inputs.build_type == ''
+        run: |
+          cd android
+          ./gradlew assembleRelease --no-daemon
+
+      - name: Build Android AAB
+        if: github.event.inputs.build_type == 'aab'
+        run: |
+          cd android
+          ./gradlew bundleRelease --no-daemon
+
+      - name: Sign APK (if keystore provided)
+        if: secrets.ANDROID_KEYSTORE != '' && (github.event.inputs.build_type == 'apk' || github.event.inputs.build_type == '')
+        run: |
+          echo '${{ secrets.ANDROID_KEYSTORE }}' | base64 -d > android/app/release.keystore
+          
+          echo "MYAPP_RELEASE_STORE_FILE=release.keystore" >> android/gradle.properties
+          echo "MYAPP_RELEASE_KEY_ALIAS=${{ secrets.ANDROID_KEY_ALIAS }}" >> android/gradle.properties
+          echo "MYAPP_RELEASE_STORE_PASSWORD=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" >> android/gradle.properties
+          echo "MYAPP_RELEASE_KEY_PASSWORD=${{ secrets.ANDROID_KEY_PASSWORD }}" >> android/gradle.properties
+          
+          cd android
+          ./gradlew assembleRelease
+
+      - name: Upload APK artifact
+        if: github.event.inputs.build_type == 'apk' || github.event.inputs.build_type == ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-${{ github.sha }}
+          path: android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 30
+
+      - name: Upload AAB artifact
+        if: github.event.inputs.build_type == 'aab'
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-bundle-${{ github.sha }}
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          retention-days: 30
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            android/app/build/outputs/apk/release/app-release.apk
+            android/app/build/outputs/bundle/release/app-release.aab
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
