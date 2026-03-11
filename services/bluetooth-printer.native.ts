@@ -1,14 +1,12 @@
 /**
- * Bluetooth POS Printer Service
+ * Bluetooth POS Printer Service - Native (iOS/Android)
  * Podpora za 58mm termične tiskalnike z ESC/POS komandami
- * 
- * Za React Native uporabljamo react-native-bluetooth-escpos-printer
- * Instalacija: npm install react-native-bluetooth-escpos-printer
  */
 
 import type { Invoice, CompanySettings, BluetoothPrinter } from '@/types';
 import { formatCurrency, formatDate } from './calculations';
 import type { FursData } from './furs';
+import { Platform, PermissionsAndroid } from 'react-native';
 
 /**
  * ESC/POS konstante za 58mm papir
@@ -16,30 +14,25 @@ import type { FursData } from './furs';
 const ESC = '\x1B';
 const GS = '\x1D';
 
-// Tekstovne komande
 const CMD = {
-  INIT: `${ESC}@`,                    // Inicializacija
-  ALIGN_LEFT: `${ESC}a\x00`,          // Poravnava levo
-  ALIGN_CENTER: `${ESC}a\x01`,        // Poravnava center
-  ALIGN_RIGHT: `${ESC}a\x02`,         // Poravnava desno
-  BOLD_ON: `${ESC}E\x01`,             // Krepko ON
-  BOLD_OFF: `${ESC}E\x00`,            // Krepko OFF
-  SIZE_NORMAL: `${GS}!\x00`,          // Normalna velikost
-  SIZE_DOUBLE: `${GS}!\x11`,          // 2x velikost
-  SIZE_LARGE: `${GS}!\x22`,           // 3x velikost
-  UNDERLINE_ON: `${ESC}-\x01`,        // Podčrtano ON
-  UNDERLINE_OFF: `${ESC}-\x00`,       // Podčrtano OFF
-  CUT_PAPER: `${GS}V\x00`,            // Reži papir
-  FEED_LINE: '\n',                     // Nova vrstica
-  FEED_LINES: (n: number) => `${ESC}d${String.fromCharCode(n)}`, // N vrstic
+  INIT: `${ESC}@`,
+  ALIGN_LEFT: `${ESC}a\x00`,
+  ALIGN_CENTER: `${ESC}a\x01`,
+  ALIGN_RIGHT: `${ESC}a\x02`,
+  BOLD_ON: `${ESC}E\x01`,
+  BOLD_OFF: `${ESC}E\x00`,
+  SIZE_NORMAL: `${GS}!\x00`,
+  SIZE_DOUBLE: `${GS}!\x11`,
+  SIZE_LARGE: `${GS}!\x22`,
+  UNDERLINE_ON: `${ESC}-\x01`,
+  UNDERLINE_OFF: `${ESC}-\x00`,
+  CUT_PAPER: `${GS}V\x00`,
+  FEED_LINE: '\n',
+  FEED_LINES: (n: number) => `${ESC}d${String.fromCharCode(n)}`,
 };
 
-// Širina tiskalnika (znaki za 58mm papir)
 const LINE_WIDTH = 32;
 
-/**
- * Funkcije za formatiranje besedila
- */
 function centerText(text: string): string {
   if (text.length >= LINE_WIDTH) return text;
   const padding = Math.floor((LINE_WIDTH - text.length) / 2);
@@ -78,20 +71,13 @@ function wrapText(text: string, maxWidth: number = LINE_WIDTH): string[] {
   return lines;
 }
 
-/**
- * Ustvari ESC/POS komande za tiskanje računa
- */
 export function generateReceiptCommands(
   invoice: Invoice,
   company: CompanySettings,
   fursData?: FursData
 ): string {
   let commands = '';
-
-  // Inicializacija
   commands += CMD.INIT;
-
-  // Logo/Header
   commands += CMD.ALIGN_CENTER;
   commands += CMD.SIZE_DOUBLE;
   commands += CMD.BOLD_ON;
@@ -105,7 +91,6 @@ export function generateReceiptCommands(
   if (company.phone) commands += company.phone + CMD.FEED_LINE;
   commands += separator('=') + CMD.FEED_LINE;
 
-  // Tip dokumenta in številka
   commands += CMD.SIZE_LARGE;
   commands += CMD.BOLD_ON;
   const docType = getDocumentType(invoice.type);
@@ -115,7 +100,6 @@ export function generateReceiptCommands(
   commands += CMD.BOLD_OFF;
   commands += separator('=') + CMD.FEED_LINE;
 
-  // Datum in čas
   commands += CMD.ALIGN_LEFT;
   commands += twoColumn('Datum:', formatDate(invoice.issueDate)) + CMD.FEED_LINE;
   if (invoice.type === 'invoice') {
@@ -124,7 +108,6 @@ export function generateReceiptCommands(
   commands += twoColumn('Nacin placila:', getPaymentMethodText(invoice.paymentMethod)) + CMD.FEED_LINE;
   commands += separator() + CMD.FEED_LINE;
 
-  // Stranka
   if (invoice.clientData.type === 'company') {
     commands += CMD.BOLD_ON + 'STRANKA:' + CMD.BOLD_OFF + CMD.FEED_LINE;
     commands += invoice.clientData.name + CMD.FEED_LINE;
@@ -139,15 +122,12 @@ export function generateReceiptCommands(
     commands += separator() + CMD.FEED_LINE;
   }
 
-  // Postavke
   commands += CMD.BOLD_ON + 'POSTAVKE' + CMD.BOLD_OFF + CMD.FEED_LINE;
   commands += separator() + CMD.FEED_LINE;
 
   invoice.items.forEach((item, index) => {
-    // Naziv
     commands += CMD.BOLD_ON + `${index + 1}. ${item.serviceName}` + CMD.BOLD_OFF + CMD.FEED_LINE;
     
-    // Opis (če obstaja)
     if (item.description) {
       const descLines = wrapText(item.description, LINE_WIDTH - 2);
       descLines.forEach(line => {
@@ -155,13 +135,8 @@ export function generateReceiptCommands(
       });
     }
     
-    // Količina x Cena
     commands += `  ${item.quantity} ${item.unit} x ${formatCurrency(item.pricePerUnit)}` + CMD.FEED_LINE;
-    
-    // Osnova (brez DDV)
     commands += twoColumn(`  Osnova (${item.ddvRate}% DDV):`, formatCurrency(item.totalWithoutDDV)) + CMD.FEED_LINE;
-    
-    // Skupaj z DDV
     commands += CMD.BOLD_ON;
     commands += twoColumn('  SKUPAJ:', formatCurrency(item.totalWithDDV)) + CMD.FEED_LINE;
     commands += CMD.BOLD_OFF;
@@ -169,8 +144,6 @@ export function generateReceiptCommands(
   });
 
   commands += separator('=') + CMD.FEED_LINE;
-
-  // Seštevek
   commands += twoColumn('Skupaj brez DDV:', formatCurrency(invoice.subtotal)) + CMD.FEED_LINE;
   commands += twoColumn(`DDV (22%):`, formatCurrency(invoice.totalDDV)) + CMD.FEED_LINE;
   commands += separator() + CMD.FEED_LINE;
@@ -181,7 +154,6 @@ export function generateReceiptCommands(
   commands += CMD.SIZE_NORMAL;
   commands += separator('=') + CMD.FEED_LINE;
 
-  // FURS podatki
   if (fursData) {
     commands += CMD.FEED_LINE;
     commands += CMD.ALIGN_CENTER;
@@ -190,7 +162,6 @@ export function generateReceiptCommands(
     commands += CMD.ALIGN_LEFT;
     commands += CMD.BOLD_ON + 'ZOI:' + CMD.BOLD_OFF + CMD.FEED_LINE;
     
-    // ZOI v več vrsticah (32 znakov na vrstico)
     const zoiLines = fursData.zoi.match(/.{1,32}/g) || [fursData.zoi];
     zoiLines.forEach(line => {
       commands += line + CMD.FEED_LINE;
@@ -199,7 +170,6 @@ export function generateReceiptCommands(
     commands += CMD.FEED_LINE;
     commands += CMD.BOLD_ON + 'EOR:' + CMD.BOLD_OFF + CMD.FEED_LINE;
     
-    // EOR v več vrsticah
     const eorLines = fursData.eor.match(/.{1,32}/g) || [fursData.eor];
     eorLines.forEach(line => {
       commands += line + CMD.FEED_LINE;
@@ -212,7 +182,6 @@ export function generateReceiptCommands(
     commands += separator() + CMD.FEED_LINE;
   }
 
-  // Opombe
   if (invoice.notes) {
     commands += CMD.FEED_LINE;
     commands += CMD.ALIGN_LEFT;
@@ -224,17 +193,13 @@ export function generateReceiptCommands(
     commands += separator() + CMD.FEED_LINE;
   }
 
-  // Footer
   commands += CMD.FEED_LINE;
   commands += CMD.ALIGN_CENTER;
   commands += 'Hvala za poslovanje!' + CMD.FEED_LINE;
   if (company.email) commands += company.email + CMD.FEED_LINE;
   if (company.website) commands += company.website + CMD.FEED_LINE;
   
-  // Prazne vrstice pred rezanjem
   commands += CMD.FEED_LINES(3);
-  
-  // Reži papir
   commands += CMD.CUT_PAPER;
 
   return commands;
@@ -260,20 +225,15 @@ function getPaymentMethodText(method: string): string {
 }
 
 /**
- * Bluetooth Printer Manager
- * Uporablja react-native-bluetooth-escpos-printer za dejanske Bluetooth tiskalnik operacije
+ * Bluetooth Manager - Native Implementation
  */
 
-import { Platform, PermissionsAndroid } from 'react-native';
-
-// Import dejanskega Bluetooth ESC/POS paketa
 let BluetoothManager: any = null;
 let BluetoothEscposPrinter: any = null;
 let BluetoothTscPrinter: any = null;
 let isPackageAvailable = false;
 
 try {
-  // Poskusi naložiti paket - bo avtomatsko nameščen preko npx depcheck
   const BluetoothPrinterModule = require('react-native-bluetooth-escpos-printer');
   
   BluetoothManager = BluetoothPrinterModule.BluetoothManager;
@@ -288,19 +248,15 @@ try {
   isPackageAvailable = false;
 }
 
-/**
- * Zahteva Bluetooth permissions za Android
- */
 async function requestBluetoothPermissions(): Promise<boolean> {
   if (Platform.OS !== 'android') {
-    return true; // iOS uporablja Info.plist permissions
+    return true;
   }
 
   try {
     console.log('🔐 Requesting Bluetooth permissions...');
     console.log('📱 Android API Level:', Platform.Version);
     
-    // Android 12+ (API 31+) zahteva nove permissions
     if (Platform.Version >= 31) {
       const permissions = [
         PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
@@ -323,7 +279,6 @@ async function requestBluetoothPermissions(): Promise<boolean> {
       
       return allGranted;
     } else {
-      // Android 11 in nižje
       const permissions = [
         PermissionsAndroid.PERMISSIONS.BLUETOOTH,
         PermissionsAndroid.PERMISSIONS.BLUETOOTH_ADMIN,
@@ -352,9 +307,6 @@ async function requestBluetoothPermissions(): Promise<boolean> {
   }
 }
 
-/**
- * Preveri ali je paket na voljo
- */
 function checkPackageAvailability(): void {
   if (!isPackageAvailable || !BluetoothManager) {
     throw new Error(
@@ -363,17 +315,12 @@ function checkPackageAvailability(): void {
   }
 }
 
-/**
- * Inicializira Bluetooth
- */
 export async function initBluetooth(): Promise<void> {
   try {
     console.log('🔵 Initializing Bluetooth...');
     
-    // Preveri paket
     checkPackageAvailability();
     
-    // Preveri permissions
     console.log('🔐 Checking permissions...');
     const hasPermission = await requestBluetoothPermissions();
     if (!hasPermission) {
@@ -382,7 +329,6 @@ export async function initBluetooth(): Promise<void> {
     
     console.log('✅ Permissions OK');
     
-    // Omogoči Bluetooth
     console.log('🔵 Enabling Bluetooth...');
     const enabled = await BluetoothManager.enableBluetooth();
     console.log('Bluetooth enabled result:', enabled);
@@ -395,33 +341,24 @@ export async function initBluetooth(): Promise<void> {
   }
 }
 
-/**
- * Išče Bluetooth tiskalnike
- */
 export async function scanBluetoothPrinters(): Promise<BluetoothPrinter[]> {
   try {
     console.log('🔍 Starting Bluetooth scan...');
     
-    // Preveri paket
     checkPackageAvailability();
     
-    // Inicializiraj Bluetooth
     await initBluetooth();
     
     console.log('📡 Scanning for devices...');
     
-    // Pridobi seznam sparjenih naprav
-    // react-native-bluetooth-escpos-printer vrne JSON string
     let devicesJson: string = '[]';
     let devices: any[] = [];
     
     try {
-      // Metoda 1: Pridobi sparjene naprave
       console.log('Method 1: Getting paired devices...');
       devicesJson = await BluetoothManager.list();
       console.log('Raw list result:', devicesJson);
       
-      // Parse JSON
       if (typeof devicesJson === 'string') {
         devices = JSON.parse(devicesJson);
       } else if (Array.isArray(devicesJson)) {
@@ -433,12 +370,10 @@ export async function scanBluetoothPrinters(): Promise<BluetoothPrinter[]> {
       console.warn('List failed, trying scan...', listError);
       
       try {
-        // Metoda 2: Skeniraj nove naprave
         console.log('Method 2: Scanning for new devices...');
         devicesJson = await BluetoothManager.scanDevices();
         console.log('Raw scan result:', devicesJson);
         
-        // Parse JSON
         if (typeof devicesJson === 'string') {
           devices = JSON.parse(devicesJson);
         } else if (Array.isArray(devicesJson)) {
@@ -462,7 +397,6 @@ export async function scanBluetoothPrinters(): Promise<BluetoothPrinter[]> {
       console.log(`Device ${i + 1}:`, d);
     });
     
-    // Pretvori v naš format
     const printers = devices.map((device: any) => ({
       id: device.address || device.id || device.name || `device_${Date.now()}`,
       name: device.name || 'Neznana naprava',
@@ -480,24 +414,17 @@ export async function scanBluetoothPrinters(): Promise<BluetoothPrinter[]> {
   }
 }
 
-/**
- * Poveže se s tiskalnikom
- */
 export async function connectPrinter(address: string): Promise<void> {
   try {
     console.log('🔌 Connecting to printer:', address);
     
-    // Preveri paket
     checkPackageAvailability();
     
-    // Poveži se
     const result = await BluetoothManager.connect(address);
     console.log('Connection result:', result);
     
-    // Počakaj malo da se povezava stabilizira
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    // Inicializiraj tiskalnik
     console.log('🖨️ Initializing printer...');
     await BluetoothEscposPrinter.printerInit();
     
@@ -509,22 +436,15 @@ export async function connectPrinter(address: string): Promise<void> {
   }
 }
 
-/**
- * Odklopi tiskalnik
- */
 export async function disconnectPrinter(): Promise<void> {
   try {
     await BluetoothManager.disconnect();
     console.log('Tiskalnik odklopljen');
   } catch (error) {
     console.error('Napaka pri odklopu:', error);
-    // Ne vrzi napake - odklop ni kritičen
   }
 }
 
-/**
- * Natisne račun na Bluetooth tiskalniku
- */
 export async function printReceiptBluetooth(
   invoice: Invoice,
   company: CompanySettings,
@@ -534,16 +454,13 @@ export async function printReceiptBluetooth(
   try {
     console.log('Začetek tiskanja računa:', invoice.invoiceNumber);
     
-    // Poveži se s tiskalnikom če še ni povezan
     if (!printer.connected) {
       await connectPrinter(printer.address);
     }
 
-    // Inicializacija tiskalnika
     await BluetoothEscposPrinter.printerInit();
     await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
     
-    // HEADER
     await BluetoothEscposPrinter.setBlob(0);
     await BluetoothEscposPrinter.printText(`${company.name}\n`, {
       fonttype: 1,
@@ -557,7 +474,6 @@ export async function printReceiptBluetooth(
     if (company.phone) await BluetoothEscposPrinter.printText(`${company.phone}\n`, {});
     await BluetoothEscposPrinter.printText('================================\n', {});
     
-    // TIP DOKUMENTA
     await BluetoothEscposPrinter.setBlob(0);
     const docType = getDocumentType(invoice.type);
     await BluetoothEscposPrinter.printText(`${docType}\n`, {
@@ -570,7 +486,6 @@ export async function printReceiptBluetooth(
     });
     await BluetoothEscposPrinter.printText('================================\n', {});
     
-    // DATUM
     await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.LEFT);
     await BluetoothEscposPrinter.printColumn(
       [16, 16],
@@ -596,7 +511,6 @@ export async function printReceiptBluetooth(
     );
     await BluetoothEscposPrinter.printText('--------------------------------\n', {});
     
-    // STRANKA
     if (invoice.clientData.type === 'company') {
       await BluetoothEscposPrinter.printText('STRANKA:\n', { fonttype: 1 });
       await BluetoothEscposPrinter.printText(`${invoice.clientData.name}\n`, {});
@@ -615,7 +529,6 @@ export async function printReceiptBluetooth(
     }
     await BluetoothEscposPrinter.printText('--------------------------------\n', {});
     
-    // POSTAVKE
     await BluetoothEscposPrinter.printText('POSTAVKE\n', { fonttype: 1 });
     await BluetoothEscposPrinter.printText('--------------------------------\n', {});
     
@@ -649,7 +562,6 @@ export async function printReceiptBluetooth(
     
     await BluetoothEscposPrinter.printText('================================\n', {});
     
-    // SEŠTEVEK
     await BluetoothEscposPrinter.printColumn(
       [16, 16],
       [BluetoothEscposPrinter.ALIGN.LEFT, BluetoothEscposPrinter.ALIGN.RIGHT],
@@ -675,7 +587,6 @@ export async function printReceiptBluetooth(
     
     await BluetoothEscposPrinter.printText('================================\n', {});
     
-    // FURS PODATKI
     if (fursData) {
       await BluetoothEscposPrinter.printText('\n', {});
       await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
@@ -684,7 +595,6 @@ export async function printReceiptBluetooth(
       await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.LEFT);
       
       await BluetoothEscposPrinter.printText('ZOI:\n', { fonttype: 1 });
-      // ZOI v več vrsticah
       const zoiLines = fursData.zoi.match(/.{1,32}/g) || [fursData.zoi];
       for (const line of zoiLines) {
         await BluetoothEscposPrinter.printText(`${line}\n`, {});
@@ -703,7 +613,6 @@ export async function printReceiptBluetooth(
       await BluetoothEscposPrinter.printText('--------------------------------\n', {});
     }
     
-    // OPOMBE
     if (invoice.notes) {
       await BluetoothEscposPrinter.printText('\n', {});
       await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.LEFT);
@@ -712,14 +621,12 @@ export async function printReceiptBluetooth(
       await BluetoothEscposPrinter.printText('--------------------------------\n', {});
     }
     
-    // FOOTER
     await BluetoothEscposPrinter.printText('\n', {});
     await BluetoothEscposPrinter.printerAlign(BluetoothEscposPrinter.ALIGN.CENTER);
     await BluetoothEscposPrinter.printText('Hvala za poslovanje!\n', {});
     if (company.email) await BluetoothEscposPrinter.printText(`${company.email}\n`, {});
     if (company.website) await BluetoothEscposPrinter.printText(`${company.website}\n`, {});
     
-    // Prazne vrstice in rez
     await BluetoothEscposPrinter.printAndFeedPaper(100);
     
     console.log(`Račun ${invoice.invoiceNumber} natisnjen na ${printer.name}`);
@@ -729,9 +636,6 @@ export async function printReceiptBluetooth(
   }
 }
 
-/**
- * Testno tiskanje
- */
 export async function printTestReceipt(printer: BluetoothPrinter): Promise<void> {
   try {
     console.log('Začetek testnega tiskanja...');
