@@ -53,6 +53,17 @@ jobs:
           npm install
           npm install react-native-bluetooth-escpos-printer
 
+      - name: Link Project to EAS
+        run: npx eas-cli init --id ${{ secrets.EAS_PROJECT_ID }} --non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build Android with EAS
+        run: |
+          eas build --platform android --profile production --non-interactive --no-wait
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
       - name: Build Android with EAS
         if: github.event.inputs.platform == 'android' || github.event.inputs.platform == 'all' || github.event.inputs.platform == ''
         run: |
