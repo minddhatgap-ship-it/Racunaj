@@ -6,7 +6,7 @@
     "extra": {
       "eas": {
         "projectId": "c98c4e32-dec6-4526-bb16-38f3abb7c59a"
-        }
+      }
     },
     "cli": {
       "appVersionSource": "remote"
@@ -61,9 +61,9 @@
         "expo-build-properties",
         {
           "android": {
-            "minSdkVersion": 23,
-            "targetSdkVersion": 34,
-            "compileSdkVersion": 34
+            "minSdkVersion": 24,
+            "targetSdkVersion": 35,
+            "compileSdkVersion": 35
           },
           "ios": {
             "deploymentTarget": "15.1"
