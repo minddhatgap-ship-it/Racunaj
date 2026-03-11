@@ -9,14 +9,28 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.onspace.racunovodstvo",
+      "infoPlist": {
+        "NSBluetoothAlwaysUsageDescription": "Ta aplikacija potrebuje Bluetooth dostop za povezavo s POS tiskalniki in tiskanje računov.",
+        "NSBluetoothPeripheralUsageDescription": "Ta aplikacija potrebuje Bluetooth dostop za komunikacijo s tiskalniki."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/logo.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "BLUETOOTH",
+        "BLUETOOTH_ADMIN",
+        "BLUETOOTH_SCAN",
+        "BLUETOOTH_CONNECT",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ],
+      "package": "com.onspace.racunovodstvo"
     },
     "web": {
       "bundler": "metro",
@@ -34,7 +48,20 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 23,
+            "targetSdkVersion": 34,
+            "compileSdkVersion": 34
+          },
+          "ios": {
+            "deploymentTarget": "13.0"
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

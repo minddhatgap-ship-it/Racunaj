@@ -267,71 +267,100 @@ function getPaymentMethodText(method: string): string {
 import { Platform, PermissionsAndroid } from 'react-native';
 
 // Import dejanskega Bluetooth ESC/POS paketa
-let BluetoothManager: any;
-let BluetoothEscposPrinter: any;
+let BluetoothManager: any = null;
+let BluetoothEscposPrinter: any = null;
+let BluetoothTscPrinter: any = null;
+let isPackageAvailable = false;
 
 try {
-  // Poskusi naložiti paket (bo avtomatsko nameščen)
-  const printer = require('react-native-bluetooth-escpos-printer');
-  BluetoothManager = printer.BluetoothManager;
-  BluetoothEscposPrinter = printer.BluetoothEscposPrinter;
+  // Poskusi naložiti paket - bo avtomatsko nameščen preko npx depcheck
+  const BluetoothPrinterModule = require('react-native-bluetooth-escpos-printer');
+  
+  BluetoothManager = BluetoothPrinterModule.BluetoothManager;
+  BluetoothEscposPrinter = BluetoothPrinterModule.BluetoothEscposPrinter;
+  BluetoothTscPrinter = BluetoothPrinterModule.BluetoothTscPrinter;
+  
+  isPackageAvailable = true;
+  console.log('✅ react-native-bluetooth-escpos-printer loaded successfully');
 } catch (error) {
-  console.warn('react-native-bluetooth-escpos-printer ni nameščen. Bluetooth tiskanje ne bo delovalo.');
-  // Fallback na mock če paket ni na voljo
-  BluetoothManager = {
-    enableBluetooth: async () => console.log('Mock: Bluetooth enabled'),
-    scanDevices: async () => [],
-    connect: async () => console.log('Mock: Connected'),
-    disconnect: async () => console.log('Mock: Disconnected'),
-  };
-  BluetoothEscposPrinter = {
-    printerInit: async () => {},
-    printText: async () => {},
-    printColumn: async () => {},
-    printQRCode: async () => {},
-    printerAlign: async () => {},
-    setBlob: async () => {},
-    printAndFeedPaper: async () => {},
-    cutPaper: async () => {},
-  };
+  console.warn('⚠️ react-native-bluetooth-escpos-printer ni na voljo:', error);
+  console.warn('📦 Paket bo avtomatsko nameščen pri prvem buildu');
+  isPackageAvailable = false;
 }
 
 /**
  * Zahteva Bluetooth permissions za Android
  */
 async function requestBluetoothPermissions(): Promise<boolean> {
-  if (Platform.OS === 'android') {
-    try {
-      // Android 12+ zahteva nove permissions
-      if (Platform.Version >= 31) {
-        const granted = await PermissionsAndroid.requestMultiple([
-          PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
-          PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
-        ]);
-        
-        return (
-          granted['android.permission.BLUETOOTH_SCAN'] === PermissionsAndroid.RESULTS.GRANTED &&
-          granted['android.permission.BLUETOOTH_CONNECT'] === PermissionsAndroid.RESULTS.GRANTED
-        );
-      } else {
-        // Starejše verzije Androida
-        const granted = await PermissionsAndroid.requestMultiple([
-          PermissionsAndroid.PERMISSIONS.BLUETOOTH,
-          PermissionsAndroid.PERMISSIONS.BLUETOOTH_ADMIN,
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-        ]);
-        
-        return (
-          granted['android.permission.BLUETOOTH'] === PermissionsAndroid.RESULTS.GRANTED &&
-          granted['android.permission.BLUETOOTH_ADMIN'] === PermissionsAndroid.RESULTS.GRANTED
-        );
-      }
-    } catch (error) {
-      console.error('Permission request error:', error);
-      return false;
-    }
+  if (Platform.OS !== 'android') {
+    return true; // iOS uporablja Info.plist permissions
   }
-  return true; // iOS ne potrebuje runtime permissions
+
+  try {
+    console.log('🔐 Requesting Bluetooth permissions...');
+    console.log('📱 Android API Level:', Platform.Version);
+    
+    // Android 12+ (API 31+) zahteva nove permissions
+    if (Platform.Version >= 31) {
+      const permissions = [
+        PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+        PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+      ];
+      
+      console.log('Requesting Android 12+ permissions:', permissions);
+      
+      const granted = await PermissionsAndroid.requestMultiple(permissions);
+      
+      const allGranted = (
+        granted['android.permission.BLUETOOTH_SCAN'] === PermissionsAndroid.RESULTS.GRANTED &&
+        granted['android.permission.BLUETOOTH_CONNECT'] === PermissionsAndroid.RESULTS.GRANTED &&
+        granted['android.permission.ACCESS_FINE_LOCATION'] === PermissionsAndroid.RESULTS.GRANTED
+      );
+      
+      console.log('Permissions result:', granted);
+      console.log('All granted:', allGranted);
+      
+      return allGranted;
+    } else {
+      // Android 11 in nižje
+      const permissions = [
+        PermissionsAndroid.PERMISSIONS.BLUETOOTH,
+        PermissionsAndroid.PERMISSIONS.BLUETOOTH_ADMIN,
+        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+        PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
+      ];
+      
+      console.log('Requesting Android <12 permissions:', permissions);
+      
+      const granted = await PermissionsAndroid.requestMultiple(permissions);
+      
+      const allGranted = (
+        granted['android.permission.BLUETOOTH'] === PermissionsAndroid.RESULTS.GRANTED &&
+        granted['android.permission.BLUETOOTH_ADMIN'] === PermissionsAndroid.RESULTS.GRANTED &&
+        granted['android.permission.ACCESS_FINE_LOCATION'] === PermissionsAndroid.RESULTS.GRANTED
+      );
+      
+      console.log('Permissions result:', granted);
+      console.log('All granted:', allGranted);
+      
+      return allGranted;
+    }
+  } catch (error) {
+    console.error('❌ Permission request error:', error);
+    return false;
+  }
+}
+
+/**
+ * Preveri ali je paket na voljo
+ */
+function checkPackageAvailability(): void {
+  if (!isPackageAvailable || !BluetoothManager) {
+    throw new Error(
+      'Bluetooth paket ni na voljo. Paket react-native-bluetooth-escpos-printer bo avtomatsko nameščen pri naslednjem buildu aplikacije. Prosimo ponovno buildate aplikacijo.'
+    );
+  }
 }
 
 /**
@@ -339,17 +368,30 @@ async function requestBluetoothPermissions(): Promise<boolean> {
  */
 export async function initBluetooth(): Promise<void> {
   try {
+    console.log('🔵 Initializing Bluetooth...');
+    
+    // Preveri paket
+    checkPackageAvailability();
+    
     // Preveri permissions
+    console.log('🔐 Checking permissions...');
     const hasPermission = await requestBluetoothPermissions();
     if (!hasPermission) {
-      throw new Error('Bluetooth permissions niso odobrene');
+      throw new Error('Bluetooth permissions niso odobrene. Omogočite Bluetooth dovoljenja v nastavitvah.');
     }
     
+    console.log('✅ Permissions OK');
+    
     // Omogoči Bluetooth
-    await BluetoothManager.enableBluetooth();
+    console.log('🔵 Enabling Bluetooth...');
+    const enabled = await BluetoothManager.enableBluetooth();
+    console.log('Bluetooth enabled result:', enabled);
+    
+    console.log('✅ Bluetooth initialized successfully');
   } catch (error) {
-    console.error('Bluetooth napaka:', error);
-    throw new Error('Napaka pri omogočanju Bluetooth. Preverite ali je Bluetooth vklopljen.');
+    console.error('❌ Bluetooth initialization error:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`Napaka pri omogočanju Bluetooth: ${errorMessage}`);
   }
 }
 
@@ -358,51 +400,83 @@ export async function initBluetooth(): Promise<void> {
  */
 export async function scanBluetoothPrinters(): Promise<BluetoothPrinter[]> {
   try {
-    console.log('Začetek Bluetooth scan...');
+    console.log('🔍 Starting Bluetooth scan...');
+    
+    // Preveri paket
+    checkPackageAvailability();
+    
+    // Inicializiraj Bluetooth
     await initBluetooth();
     
-    // Pridobi seznam sparjenih naprav (list) ali skeniraj nove (scanDevices)
-    // react-native-bluetooth-escpos-printer vrne JSON string, ne array
-    let devicesJson: string;
+    console.log('📡 Scanning for devices...');
     
-    try {
-      // Najprej poskusi pridobiti sparjene naprave
-      devicesJson = await BluetoothManager.list();
-      console.log('Sparjene naprave:', devicesJson);
-    } catch (listError) {
-      console.log('List failed, trying scan...', listError);
-      // Če to ne deluje, poskusi skenirati
-      devicesJson = await BluetoothManager.scanDevices();
-      console.log('Scan result:', devicesJson);
-    }
-    
-    // Parse JSON rezultat
+    // Pridobi seznam sparjenih naprav
+    // react-native-bluetooth-escpos-printer vrne JSON string
+    let devicesJson: string = '[]';
     let devices: any[] = [];
+    
     try {
-      devices = JSON.parse(devicesJson);
-    } catch (parseError) {
-      console.error('JSON parse error:', parseError);
-      // Če je že array, uporabi direktno
-      if (Array.isArray(devicesJson)) {
+      // Metoda 1: Pridobi sparjene naprave
+      console.log('Method 1: Getting paired devices...');
+      devicesJson = await BluetoothManager.list();
+      console.log('Raw list result:', devicesJson);
+      
+      // Parse JSON
+      if (typeof devicesJson === 'string') {
+        devices = JSON.parse(devicesJson);
+      } else if (Array.isArray(devicesJson)) {
         devices = devicesJson;
-      } else {
-        throw new Error('Napaka pri obdelavi rezultatov');
+      }
+      
+      console.log(`Found ${devices.length} paired devices`);
+    } catch (listError) {
+      console.warn('List failed, trying scan...', listError);
+      
+      try {
+        // Metoda 2: Skeniraj nove naprave
+        console.log('Method 2: Scanning for new devices...');
+        devicesJson = await BluetoothManager.scanDevices();
+        console.log('Raw scan result:', devicesJson);
+        
+        // Parse JSON
+        if (typeof devicesJson === 'string') {
+          devices = JSON.parse(devicesJson);
+        } else if (Array.isArray(devicesJson)) {
+          devices = devicesJson;
+        }
+        
+        console.log(`Found ${devices.length} scanned devices`);
+      } catch (scanError) {
+        console.error('Scan also failed:', scanError);
+        throw new Error('Ni bilo mogoče najti Bluetooth naprav');
       }
     }
     
-    console.log('Najdenih naprav:', devices.length);
+    if (!Array.isArray(devices)) {
+      console.error('Devices is not an array:', typeof devices, devices);
+      devices = [];
+    }
+    
+    console.log('✅ Total devices found:', devices.length);
+    devices.forEach((d, i) => {
+      console.log(`Device ${i + 1}:`, d);
+    });
     
     // Pretvori v naš format
-    return devices.map((device: any) => ({
-      id: device.address || device.id || device.name,
+    const printers = devices.map((device: any) => ({
+      id: device.address || device.id || device.name || `device_${Date.now()}`,
       name: device.name || 'Neznana naprava',
-      address: device.address || device.id,
+      address: device.address || device.id || '',
       connected: false,
     }));
+    
+    console.log('✅ Returning', printers.length, 'printers');
+    return printers;
+    
   } catch (error) {
-    console.error('Napaka pri iskanju tiskalnikov:', error);
+    console.error('❌ Scan error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Neznana napaka';
-    throw new Error(`Napaka pri iskanju Bluetooth naprav: ${errorMessage}. Preverite ali je Bluetooth vklopljen in ali imate dovoljenja.`);
+    throw new Error(`Napaka pri iskanju Bluetooth naprav: ${errorMessage}`);
   }
 }
 
@@ -411,15 +485,27 @@ export async function scanBluetoothPrinters(): Promise<BluetoothPrinter[]> {
  */
 export async function connectPrinter(address: string): Promise<void> {
   try {
-    console.log('Povezovanje s tiskalnikom:', address);
-    await BluetoothManager.connect(address);
-    console.log('Povezava uspešna');
+    console.log('🔌 Connecting to printer:', address);
+    
+    // Preveri paket
+    checkPackageAvailability();
+    
+    // Poveži se
+    const result = await BluetoothManager.connect(address);
+    console.log('Connection result:', result);
+    
+    // Počakaj malo da se povezava stabilizira
+    await new Promise(resolve => setTimeout(resolve, 500));
     
     // Inicializiraj tiskalnik
+    console.log('🖨️ Initializing printer...');
     await BluetoothEscposPrinter.printerInit();
+    
+    console.log('✅ Printer connected and initialized');
   } catch (error) {
-    console.error('Napaka pri povezovanju:', error);
-    throw new Error('Napaka pri povezovanju s tiskalnikom. Preverite ali je tiskalnik vklopljen in v dosegu.');
+    console.error('❌ Connection error:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(`Napaka pri povezovanju: ${errorMessage}`);
   }
 }
 
