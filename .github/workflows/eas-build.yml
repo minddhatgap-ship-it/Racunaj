@@ -49,7 +49,9 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: Install dependencies
-        run: npm install
+        run: |
+          npm install
+          npm install react-native-bluetooth-escpos-printer
 
       - name: Build Android with EAS
         if: github.event.inputs.platform == 'android' || github.event.inputs.platform == 'all' || github.event.inputs.platform == ''

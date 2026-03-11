@@ -1,75 +1,129 @@
-# Welcome to OnSpace AI
+# Računovodstvo - Accounting & Invoicing App
 
-Onspace AI empowers anyone to turn ideas into powerful AI applications in minutes—no coding required. Our free, no-code platform enables effortless creation of custom AI apps; simply describe your vision and our agentic AI handles the rest. The onspace-app, built with React Native and Expo, demonstrates this capability—integrating popular third-party libraries to deliver seamless cross-platform performance across iOS, Android, and Web environments.
+Professional Slovenian accounting and invoicing application for independent entrepreneurs (s.p.) and small businesses.
 
-## Getting Started
+## 🚀 Features
 
-### 1. Install Dependencies
+- ✅ **Invoice Creation** - Physical person & legal entity support
+- 📊 **Business Overview** - Analytics and reports
+- 💰 **Payment Methods** - Cash, card (SumUp), bank transfer
+- 🏛️ **FURS Integration** - Tax verification, ZOI/EOR, eDavki XML export
+- 🖨️ **Bluetooth Printing** - POS thermal printer support (58mm)
+- 📄 **PDF Export** - Professional invoice PDFs
+- ⚙️ **Settings** - Company info, tax method, test mode
+- 🔄 **Invoice Management** - List, view, correct, cancel
+
+## 🏁 Quick Start
 
 ```bash
+# Install dependencies
 npm install
-# or
-yarn install
+npm install react-native-bluetooth-escpos-printer
+
+# Run on Android
+npx expo run:android
+
+# Run on iOS
+npx expo run:ios
 ```
 
-### 2. Start the Project
+## 📖 Documentation
 
-- Start the development server (choose your platform):
+- **[SETUP.md](./SETUP.md)** - Installation and setup instructions
+- **[BUILD_GUIDE.md](./BUILD_GUIDE.md)** - Complete build guide for all platforms
+- **[README_BLUETOOTH.md](./README_BLUETOOTH.md)** - Bluetooth printer setup
+- **[.github/README_WORKFLOWS.md](./.github/README_WORKFLOWS.md)** - CI/CD workflows
+
+## 🔧 Tech Stack
+
+- **React Native** - Cross-platform mobile framework
+- **Expo** - Development platform
+- **TypeScript** - Type-safe development
+- **Expo Router** - File-based routing
+- **Context API** - State management
+- **AsyncStorage** - Local persistence
+
+## 📱 Requirements
+
+- **Node.js**: 18+
+- **Android**: API 23+ (Android 6.0+)
+- **iOS**: 15.1+
+
+## 🛠️ Development
 
 ```bash
-npm run start         # Start Expo development server
-npm run android       # Launch Android emulator
-npm run ios           # Launch iOS simulator
-npm run web           # Start the web version
+# Start Metro bundler
+npm start
+
+# Run on Android device/emulator
+npx expo run:android
+
+# Run on iOS device/simulator
+npx expo run:ios
+
+# Clear cache and restart
+npx expo start --clear
 ```
 
-- Reset the project (clear cache, etc.):
+## 🏗️ Build
+
+### Development Build
 
 ```bash
-npm run reset-project
+npx expo prebuild --clean
+npx expo run:android
 ```
 
-### 3. Lint the Code
+### Production Build (EAS)
 
 ```bash
-npm run lint
+# Install EAS CLI
+npm install -g eas-cli
+
+# Build Android
+eas build --platform android --profile production
+
+# Build iOS
+eas build --platform ios --profile production
 ```
 
-## Main Dependencies
+### Local Release Build
 
-- React Native: 0.79.4
-- React: 19.0.0
-- Expo: ~53.0.12
-- Expo Router: ~5.1.0
-- Supabase: ^2.50.0
-- Other commonly used libraries:  
-  - @expo/vector-icons  
-  - react-native-paper  
-  - react-native-calendars  
-  - lottie-react-native  
-  - react-native-webview  
-  - and more
+```bash
+# Android APK
+cd android
+./gradlew assembleRelease
 
-For a full list of dependencies, see [package.json](./package.json).
+# Android AAB (for Play Store)
+./gradlew bundleRelease
+```
 
-## Development Tools
+## 📦 Native Modules
 
-- TypeScript: ~5.8.3
-- ESLint: ^9.25.0
-- @babel/core: ^7.25.2
+This app uses native modules that require a development build:
 
-## Contributing
+- `react-native-bluetooth-escpos-printer` - Bluetooth POS printing
 
-1. Fork this repository
-2. Create a new branch (`git checkout -b main`)
-3. Commit your changes (`git commit -am 'Add new feature'`)
-4. Push to the branch (`git push origin feature/your-feature`)
-5. Open a Pull Request
+**Note:** Cannot use Expo Go - must build locally or with EAS.
 
-## License
+## 🧪 Testing
 
-This project is private ("private": true). For collaboration inquiries, please contact the author.
+```bash
+# Run on physical device (for Bluetooth testing)
+npx expo run:android
+
+# Enable test mode in app
+Settings → Testni način → ON
+```
+
+## 📝 License
+
+Proprietary - All rights reserved
+
+## 🤝 Support
+
+For issues or questions, please open an issue on GitHub.
 
 ---
 
-Feel free to add project screenshots, API documentation, feature descriptions, or any other information as needed.
+Built with ❤️ for Slovenian businesses

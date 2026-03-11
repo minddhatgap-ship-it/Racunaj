@@ -12,6 +12,9 @@
       },
       "ios": {
         "buildConfiguration": "Debug"
+      },
+      "env": {
+        "NODE_ENV": "development"
       }
     },
     "preview": {
@@ -21,6 +24,9 @@
       },
       "ios": {
         "simulator": false
+      },
+      "env": {
+        "NODE_ENV": "preview"
       }
     },
     "production": {
@@ -29,6 +35,9 @@
       },
       "ios": {
         "simulator": false
+      },
+      "env": {
+        "NODE_ENV": "production"
       }
     }
   },
