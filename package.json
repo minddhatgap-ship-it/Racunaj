@@ -151,7 +151,8 @@
   },
   "overrides": {
     "react": "$react",
-    "react-dom": "$react-dom"
+    "react-dom": "$react-dom",
+    "react-native": "$react-native"
   },
   "private": true
 }
