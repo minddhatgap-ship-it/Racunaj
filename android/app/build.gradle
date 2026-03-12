@@ -1,0 +1,99 @@
+apply plugin: "com.android.application"
+apply plugin: "org.jetbrains.kotlin.android"
+apply plugin: "com.facebook.react"
+
+/**
+ * Expo-generated Android build configuration
+ * Compatible with React Native 0.79.3 + Expo SDK 53
+ * New Architecture (Fabric + TurboModules) enabled
+ */
+
+def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
+
+android {
+    namespace "com.onspace.racunovodstvo"
+    compileSdk rootProject.ext.compileSdkVersion
+    buildToolsVersion rootProject.ext.buildToolsVersion
+    ndkVersion rootProject.ext.ndkVersion
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
+    defaultConfig {
+        applicationId "com.onspace.racunovodstvo"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0.0"
+
+        // Bluetooth printer support (react-native-bluetooth-escpos-printer)
+        manifestPlaceholders = [
+            BLUETOOTH_CONNECT_PERMISSION: "android.permission.BLUETOOTH_CONNECT",
+            BLUETOOTH_SCAN_PERMISSION: "android.permission.BLUETOOTH_SCAN"
+        ]
+    }
+
+    signingConfigs {
+        debug {
+            storeFile file('debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+            applicationIdSuffix ".debug"
+        }
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+        }
+    }
+
+    packagingOptions {
+        // Exclude duplicate LICENSE files
+        pickFirst 'lib/x86/libc++_shared.so'
+        pickFirst 'lib/x86_64/libc++_shared.so'
+        pickFirst 'lib/armeabi-v7a/libc++_shared.so'
+        pickFirst 'lib/arm64-v8a/libc++_shared.so'
+    }
+}
+
+react {
+    // Expo Router requires this for auto-linking
+    entryFile = file(["node_modules/expo-router/entry"])
+}
+
+dependencies {
+    // React Native core (automatically linked by expo-modules)
+    implementation("com.facebook.react:react-android")
+    implementation("com.facebook.react:hermes-android")
+
+    // Expo modules auto-linking (handles all expo-* packages)
+    implementation project(':expo-modules-core')
+
+    // AndroidX dependencies (Gradle 9.0 compatible - no deprecated 'compile')
+    implementation "androidx.core:core-ktx:1.12.0"
+    implementation "androidx.appcompat:appcompat:1.6.1"
+    implementation "androidx.activity:activity-ktx:1.8.2"
+    implementation "androidx.core:core-splashscreen:1.0.1"
+
+    // Kotlin stdlib
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:${rootProject.ext.kotlinVersion}"
+
+    // Bluetooth ESC/POS Printer (native module)
+    // This is auto-linked via react-native.config.js or manually linked
+    // implementation project(':react-native-bluetooth-escpos-printer')
+}
+
+// Apply Expo auto-linking (must be at the end)
+apply from: new File(["node_modules", "expo", "scripts", "autolinking.gradle"].join(File.separator), projectRoot)

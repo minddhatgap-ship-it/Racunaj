@@ -1,0 +1,8 @@
+rootProject.name = 'Racunovodstvo'
+
+// Expo auto-linking
+apply from: new File(["node_modules", "expo", "scripts", "autolinking.gradle"].join(File.separator), rootDir.getAbsoluteFile().getParentFile().getAbsolutePath())
+useExpoModules()
+
+// Include app module
+include ':app'
