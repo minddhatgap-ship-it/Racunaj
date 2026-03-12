@@ -24,34 +24,34 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # ─── Fix all dependency versions for Expo SDK 55 ─────────────────────
-      # SDK 55 aligns ALL expo/* packages to ~55.x.x versioning.
-      # react-native-screens 4.23.0 is required by SDK 55 (not ~4.0.0).
-      # react-native-safe-area-context 5.x is correct.
-      - name: Fix package.json dependencies for SDK 55
+      # ─── Fix dependencies for Expo SDK 53 + React Native 0.79 ───────────
+      # React Native 0.79 requires New Architecture-compatible package versions
+      # SDK 53 is the current Expo SDK for RN 0.79.x
+      - name: Fix package.json dependencies for SDK 53 + RN 0.79
         run: |
-          # expo-web-browser ~1.1.0 does NOT exist; SDK 55 uses ~55.0.0
-          npm pkg set dependencies.expo-web-browser="~55.0.0"
-          # react-native-screens SDK 55 requires 4.23.0 (not ~4.0.0)
+          # react-native-screens: 4.23.0+ required for RN 0.79 New Architecture (Fabric)
+          # 4.18.2 causes Codegen "Unknown prop type" errors
           npm pkg set dependencies.react-native-screens="~4.23.0"
-          # expo-splash-screen SDK 55 version
-          npm pkg set dependencies.expo-splash-screen="~55.0.0"
-          # expo-status-bar SDK 55 version
-          npm pkg set dependencies.expo-status-bar="~55.0.0"
-          # expo-file-system + expo-sharing for xlsx export
-          npm pkg set dependencies.expo-file-system="~55.0.0"
-          npm pkg set dependencies.expo-sharing="~55.0.0"
-          # react-native-gesture-handler 2.30.0+ required for RN 0.83 (SDK 55)
-          # 2.24.x had C++ API incompatibility with RN 0.83's shadowNodeFromValue removal
-          npm pkg set dependencies.react-native-gesture-handler="~2.30.0"
-          # MMKV: synchronous key-value storage — replaces AsyncStorage and expo-file-system
-          # for app data. No async bridge = no deadlock on HyperOS/MIUI Android devices.
-          npm pkg set dependencies.react-native-mmkv="^3.2.0"
-          # Remove AsyncStorage — no longer used anywhere in the app
-          npm pkg delete dependencies.@react-native-async-storage/async-storage 2>/dev/null || true
-          echo "📦 Final dependencies:"
-          node -e "const p=require('./package.json'); console.log(JSON.stringify(p.dependencies, null, 2))"
+          # react-native-gesture-handler: 2.24.0+ compatible with RN 0.79
+          npm pkg set dependencies.react-native-gesture-handler="~2.24.0"
+          # react-native-reanimated: 3.17.4 is correct for SDK 53
+          npm pkg set dependencies.react-native-reanimated="~3.17.5"
+          # expo-web-browser: SDK 53 version
+          npm pkg set dependencies.expo-web-browser="~14.1.6"
+          # expo-splash-screen: SDK 53 version
+          npm pkg set dependencies.expo-splash-screen="~0.30.8"
+          # expo-status-bar: SDK 53 version  
+          npm pkg set dependencies.expo-status-bar="~2.2.3"
+          # expo-file-system: SDK 53 version
+          npm pkg set dependencies.expo-file-system="~18.1.10"
+          # expo-sharing: SDK 53 version
+          npm pkg set dependencies.expo-sharing="~13.1.5"
+          echo "📦 Fixed dependencies for Expo SDK 53 + React Native 0.79.3"
+          node -e "const p=require('./package.json'); console.log('react-native-screens:', p.dependencies['react-native-screens'])"
       # ─── Install ──────────────────────────────────────────────────────────
+      - name: Clean npm cache
+        run: npm cache clean --force
+
       - name: Install npm dependencies
         run: npm install --legacy-peer-deps
 
@@ -60,6 +60,11 @@ jobs:
           node_modules/.bin/expo --version
           echo "✅ expo CLI ready"
       # ─── Generate native Android project ─────────────────────────────────
+      - name: Clean previous builds
+        run: |
+          rm -rf android/
+          rm -rf .expo/
+          
       - name: Expo Prebuild (Android)
         run: node_modules/.bin/expo prebuild --platform android --clean --no-install
 
